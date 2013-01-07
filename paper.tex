@@ -117,7 +117,7 @@ We evaluate these algorithmic error checkers by measuring their costs and effect
 
 Experiment 1: Measure performance degradation of using error detectors as input sizes increase. In case of RK if we can run a version that doesn't do the multiple step sizes, do so but if this is difficult then don't worry about it.
 
-Experiment 2: Measure the error in the outputs of the algorithms with and without the algorithmic detectors. 
+Experiment 2: Measure the error in the outputs of the algorithms with and without the algorithmic detectors.
 First, show a probability distribution histogram for all the codes at one error rate, input size and algorithmic detection threshold.
 Then show a summary of the entire space using the same heatmaps that we're using for final application results.
 Put the input size and error rate on the y-axis and the detection threshold on the x-axis.
@@ -147,8 +147,8 @@ We have used this mechanism to protect applications from a subset of memory erro
 Experiment 1: Show the fraction of runs of each routine that is aborted as a result of a memory error
 
 Errors that do not cause the application to access an invalid memory location are detected by replicating key pointers and loop iteration variables.
-The Hattrick application uses a high-accuracy ODE solver that is capable of estimating errors and detecting and reducing errors to a certain level adaptively. 
-Therefore we would only focus on the application's vulnerability to pointer and index corruptions. 
+The Hattrick application uses a high-accuracy ODE solver that is capable of estimating errors and detecting and reducing errors to a certain level adaptively.
+Therefore we would only focus on the application's vulnerability to pointer and index corruptions.
 Replicating critical variables (pointers and indices) and leveraging Byzantine fault tolerance and correcting those pointers and indices during run-time would raise the applications' resistance to soft errors.
 \greg{Need to explain why we only do this for Hattrick.}
 
@@ -206,4 +206,4 @@ Experiment: Final graph that shows slowdown for each desired probability of perf
 \section{Summary}
 \label{sec:summary}
 
-\end{document} 
+\end{document}
