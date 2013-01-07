@@ -91,6 +91,7 @@ An accurate N-Body integrator meant for high control over small systems, specifi
 \label{sec:res_tech:err_det:algo}
 
 \greg{This section needs performance results. How much slower are the resilient routines and how much more resilient do they become across a range of detection thresholds.}
+\sui{Performance experiments inserted here: running algorithmic checkers across different input sizes and fault rates: 62x62 to 500x500 matrixes for MM, RK, CD, MV checkers; FFT sizes of $2^8$ to $2^{24}$ for the FFT checker; Error bars should apply here, especially for the Cholesky Decomposition checker}
 
 \paragraph{Matrix-matrix multiplication (MMM)}:
 Matrix-matrix multiplications are checked using a matrix vector multiplication, making use of this identity: $(A \cdot B) \cdot x = A \cdot (B \cdot x)$. Here x is a generated error-checking vector and $A$ and $B$ are inputs to the matrix-matrix multiplication. Time complexities of the original routine and the checker are $O(n^3)$ and $O(n^2)$ respectively.
@@ -103,7 +104,7 @@ For matrix-vector multiplication $Ax=b$ , note that the sum of the elements in t
 Symmetric Rank-K update is a special case of matrix-matrix multiplication where only the upper/lower half of the output matrix is updated. By decomposing the upper/lower half of the output matrix as a series of sub-matrices (like the sub-cells in a quad tree), the checker takes $O(n^2 \cdot \log{n})$ time, while the original routine woudl take $O(n^3)$.
 
 \paragraph{Cholesky Decomposition}: \greg{Need to define this decomposition}
-By multiplying back the upper and lower halves, the checker takes as much time as a regular matrix-matrix multiplication would do. The original routine is an iterative one, but it generally runs longer than the checker. \greg{How much longer? Need to quantify.}
+By multiplying back the upper and lower halves, the checker takes as much time as a regular matrix-matrix multiplication would do. The original routine is an iterative one, but it generally runs longer than the checker. \greg{How much longer? Need to quantify.} \sui{Can we quantify it using the performance data?}
 
 \paragraph{Fast Fourier Transform (FFT)}:
 By using Parseval's Theorem, we can check the result of an FFT of width $n$ in $O(n)$ time. Time complexity of the original routine is $O(\log{n})$.
@@ -182,7 +183,7 @@ Experiment 2: Measure the cost of input backup and input recovery in our routine
 \section{Evaluation of Resilience Methodology}
 \label{sec:eval}
 
-\greg{This is the section where we put all the pieces together and present the experimental results on full applications. We should describe our main use-case here: user wants to achieve a given accuracy with a given probability and we configure the algorithm to provide this at the lowest cost. QUESTION: how do we pick the parameters of each resilience technique? Which metric is being optimized?}
+\greg{This is the section where we put all the pieces together and present the experimental results on full applications. We should describe our main use-case here: user wants to achieve a given accuracy with a given probability and we configure the algorithm to provide this at the lowest cost. QUESTION: how do we pick the parameters of each resilience technique? Which metric is being optimized?} \sui{Using the choices of those parameters derived from the experiments we have already performed (treat it as a ``training set'') and use those choices on some new experiment configurations (treat as ``test set''), and see what is the probability that those choices could satisfy the users' experiments.}
 
 \subsection{Performance Impact}
 \label{sec:eval:perf}
