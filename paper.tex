@@ -1,0 +1,153 @@
+\documentclass[prodmode,acmtecs]{acmsmall} % Aptara syntax
+\usepackage{url}
+%\usepackage{fontspec}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{color}
+\usepackage{multirow}
+\usepackage[ruled]{algorithm2e}
+
+\newcommand{\sui}[1]{%
+  \textcolor{green}{SC - #1}
+}
+
+\newcommand{\marc}[1]{%
+  \textcolor{red}{[MC: #1]}
+}
+
+\newcommand{\greg}[1]{%
+  \textcolor{blue}{GB: #1}
+}
+
+\title{Library-based fault tolerance for scientific applications}
+\author{Sui Chen
+\affil{Louisiana State University}
+Greg Bronevetsky, Marc Casas-Guix
+\affil{Lawrence Livermore National Laboratory}}
+
+\begin{document}
+
+\section{Introduction}
+\label{sec:intro}
+
+HPC systems are becoming larger and more vulnerable to soft faults.
+
+While error correcting codes have been very effective at making memories and caches resilient to soft faults, they are more expensive for protecting core-internal state such as latches and are significantly less effective for checking the correctness of computations.
+Traditional approaches like replication are expensive, making algorithmic resilience techniques a very promising alternative.
+
+However, since such techniques depend on the semantics of the application, they require manual effort to incorporate into applications and may require deep insight into an application's invariants to deploy effectively.
+Fortunately, the software components of most real-world applications are asymmetric in their processor utilization, with most of the time spent in a few components.
+In scientific applications these components are usually various types of libraries, including numeric solvers domain-specific scientific packages.
+This indicates that if by focusing efforts on making key library routines resilient to soft faults it would be possible to efficiently protect the most expensive portions of application code, allowing simpler but more expensive techniques such as replication for the remaining code regions.
+
+This paper evaluates this approach in the context of three different types of applications: the Lasso linear solver~\cite{}, the Hattrick gravitational simulation~\cite{} and the DRC acoustic correction application~\cite{}.
+We show how these three applications can be comprehensively protected from soft faults by adding three different resilience mechanisms to each of their routines: algorithmic error checks, replication of critical data structures and checkpoint-restart of individual routines.
+We demonstrate via fault injection experiments that although none of these techniques can individually protect applications from soft faults, their combination is highly effective.
+Further, we demonstrate how these techniques can be parameterized to offer the right level of protection at any given fault rate or input type, and further can be tuned to bound the probability that the application will produce erroneous results or executes for longer than some limit.
+
+\section{Soft Faults}
+\label{sec:soft_faults}
+
+Causes of soft faults and how they manifest themselves in applications.
+
+Discuss prior work on replication and algorithmic techniques, emphasize that in this paper we're focusing on software resilience since hardware resilience is extremely difficult to deploy in real processors since the costs have to be carried by non-HPC markets that care much less about it.
+
+Can show plots of how routine results are affected by injected errors. Should show this for all the routines we'll be considering in this paper.
+
+Describe fault injection framework and how it approximates real faults.
+
+\section{Target Applications}
+\label{sec:apps}
+
+We evaluate our library-based resilience approach by applying it to the following three applications.
+As they make intensive use library routines, they are ideal testbeds for our proposed fault-tolerance methods.
+
+\greg{This section needs to include more detailed descriptions of the algorithms, the routines where they spend the bulk of their time and what fraction of time is spent there across the range of inputs. We also need to describe the types of inputs we'll be giving them in our experiments.}
+\subsection{Lasso}
+\label{sec:apps:lasso}
+A parallel shrinkage and selection method for linear regression. It computes the equation $Ax=b$, where matrix $A$ and vector $b$ are known. \greg{is it a shrinkage and selection method or an actual solver?}. Utilizes GSL (the GNU Scientific Library)'s linear algebra routines.
+
+\subsection{DRC: Digital Room Correction}
+\label{sec:apps:drc}
+
+A program used to generate correction filters for acoustic compensation of HiFi and audio system in general. It generates FIR correction filters, which can be used with a real time or offline convolver to provide correction. Utilizes the GSL FFT routine.
+
+\subsection{Hattrick}
+\label{sec:apps:hattrick}
+An accurate N-Body integrator meant for high control over small systems, specifically meant for perturbing bodies. Utilizes a differential equation solver routine.
+
+\section{Resilience Techniques}
+\label{sec:res_tech}
+
+\subsection{Error Detection}
+\label{sec:res_tech:err_det}
+\subsubsection{Algorithmic Detection}
+\label{sec:res_tech:err_det:algo}
+
+\greg{This section needs performance results. How much slower are the resilient routines and how much more resilient do they become across a range of detection thresholds.}
+
+\paragraph{Matrix-matrix multiplication (MMM)}: 
+Matrix-matrix multiplications are checked using a matrix vector multiplication, making use of this identity: $(A \cdot B) \cdot x = A \cdot (B \cdot x)$. Here x is a generated error-checking vector and $A$ and $B$ are inputs to the matrix-matrix multiplication. Time complexities of the original routine and the checker are $O(n^3)$ and $O(n^2)$ respectively.
+
+
+\paragraph{Matrix-vector multiplication (MVM)}: 
+For matrix-vector multiplication $Ax=b$ , note that the sum of the elements in the result vector $b$ is equal to the dot product of the vector composed of column sums of $A$ and $x$. Time complexity of original routine is $O(n^2)$ multiplications and that of the checker is $O(n^2)$ additions.
+
+\paragraph{Symmetric Rank-K update (SYRK)}:
+Symmetric Rank-K update is a special case of matrix-matrix multiplication where only the upper/lower half of the output matrix is updated. By decomposing the upper/lower half of the output matrix as a series of sub-matrices (like the sub-cells in a quad tree), the checker takes $O(n^2 \cdot \log{n})$ time, while the original routine woudl take $O(n^3)$.
+
+\paragraph{Cholesky Decomposition}: \greg{Need to define this decomposition}
+By multiplying back the upper and lower halves, the checker takes as much time as a regular matrix-matrix multiplication would do. The original routine is an iterative one, but it generally runs longer than the checker. \greg{How much longer? Need to quantify.}
+
+\paragraph{Fast Fourier Transform (FFT)}:
+By using Parseval's Theorem, we can check the result of an FFT of width $n$ in $O(n)$ time. Time complexity of the original routine is $O(\log{n})$.
+\greg{What is this theorem, how is it used?}
+
+\paragraph{Runge-Kutta PDE Solver (RK)}:
+\greg{Describe the multiple step size checker in Hattrick}.
+
+Those checkers can detect errors greater than a certain numeric threshold in those computations (determined by the user-defined error checker threshold). Once an error beyond the threshold has occurred, a re-calculation would be initiated.
+\greg{You need to be more specific. Each routine produces a result, your checker produces a result. How are these results compared and how is the threshold used to determine if there is an error or not.}
+
+In the following sections we would show that the error tolerance could not be arbitrarily small in order to be helpful in providing fault-tolerance when we take into account the checker itself may be unreliable since it's also vulnerable to soft errors.
+\greg{How is this shown? We certainly do show tighter detection tolerances cause longer executions, which cause more vulnerability. However, this is not the same as what you've just described}
+
+Although checkers are faster than the routines they protect, the unreliability of those checkers and the ensuing ``false alarms'' might trigger redundant re-calculations that are unnecessary, causing the application to run for much longer. This is specially true with an overly small error detection threshold. On the other hand, an overly loose detection threshold may fail to detect data corruption in output files. The results would be discussed in the results section.
+
+\subsubsection{Memory Fault Detection}
+\label{sec:res_tech:err_det:mem}
+
+Modern operating systems provide convenient means of protecting segmentation faults. A combination of \texttt{siglongjmp} and \texttt{sigsetjmp} are used to recover from segmentation faults. The overhead of this API call is having to copy the processor state into memory, therefore installing them between computation-intensive method calls adds to negligible performance degradation.
+
+\subsubsection{Targeted Replication}
+\label{sec:res_tech:err_det:repl}
+
+The third application Hattrick uses a high-accuracy ODE solver that is capable of estimating errors and detecting and reducing errors to a certain level adaptively. Therefore we would only focus on the application's vulnerability to pointer and index corruptions. Replicating critical variables (pointers and indices) and leveraging Byzantine fault tolerance and correcting those pointers and indices during run-time would raise the applications' resistance to soft errors.
+\greg{Need to explain why we only do this for Hattrick.}
+
+In order to determine a replication strategy we have to determine which variables to replicate and how many replicas to use for replicating them. The following two subsections would be focused on these problems.
+\greg{The report spends a lot of space talking about this but in the end the conclusion is that we just a pick a few options and evaluate them experimentally. How much space should we devote to this discussion.}
+
+\subsection{Recovery via Checkpoint-Restart}
+\label{sec:res_tech:cr}
+
+When errors are detected we roll the application back to the start of the current routine.
+This is done by using \texttt{siglongjmp} and \texttt{sigsetjmp}. \greg{This is the place to describe these routines and how we use them.}
+
+Further, since the fault may have corrupted the routine's initial state, it is necessary to protect it via a fast yet simple mechanism with which we can easily identify and fix errors in a routine's inputs. 
+We have implemented a block-checksum-based data correction mechanism. 
+By treating the input array as a matrix and comparing row sums and column sums of the submatrices of that matrix, we are able to detect the existence of errors and fix a fraction of the errors. 
+The protection mechanism has the following parameters:
+\begin{itemize}
+\item{\texttt{N}, the size of the error correcting sum block.}
+\item{\texttt{ECC\_ECC}, whether or not the error correcting code itself should be corrected.}
+\end{itemize}
+This mechanism is able to correct up to $1/{n^2}$ of the elements in the input array.
+\greg{Which code is being used here? You just say that it is based on block-checksums}.
+
+\section{Evaluation of Resilience Methodology}
+\label{sec:eval}
+
+
+
+\end{document}
