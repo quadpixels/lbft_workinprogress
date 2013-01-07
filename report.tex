@@ -7,14 +7,14 @@
 % 10pt          To set in 10-point type instead of 9-point.
 % 11pt          To set in 11-point type instead of 9-point.
 % authoryear    To obtain author/year citation style instead of numeric.
-\usepackage{fontspec}
+%\usepackage{fontspec} % Doesn't work with LaTeX
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{color}
-\usepackage{multirow}
-\usepackage{sectsty}
-\usepackage[titles]{tocloft}
-\usepackage{sidecap}
+%\usepackage{multirow}
+%\usepackage{sectsty}
+%\usepackage[titles]{tocloft}
+%\usepackage{sidecap}
 \usepackage{multicol}
 
 \title{Library-based fault tolerance for scientific applications}
@@ -90,11 +90,11 @@ As from the view of a user of supercomputers, errors would manifest themselves b
 
 Over-frequent termination of applications results in longer expected time to get acceptable results if the user had no choice but re-start the application over and over. Specially, this could be illustrated with the following Markov Model \ref{markovModel}.
 
-\begin{SCfigure}
-\includegraphics[width=6cm]{routine_markov.png}
+\begin{figure}
+\includegraphics[width=6cm,natwidth=398,natheight=162]{routine_markov.png}
 \caption{The Markov Model illustrating a numerical routine we're interested in. This routine, under the effects of soft errors, may abort and produce no results at all or it produce erroneous results or under some circumstances produce correct results. If the user keeps restart the application in case of error, the expected completion time of the routine could be computed as $T=(2-c)B+{{1-c} \over {c}} \cdot R$}
 \label{markovModel}
-\end{SCfigure}
+\end{figure}
 
 This model reveals the efficneicy concerns of fault-tolerance routines. The user is facing the choice of running multiple times the original application and running the fault-tolerant version of the application which is slower. The overhead of fault-tolerant routines are acceptable only when the fault-tolerant routines are capable of bringing down the \emph{expected} completion time to some acceptable level in comparison to running the original application multiple times.
 
@@ -108,11 +108,11 @@ Since the cause of soft errors could be complicated and it's hard to simulate th
 
 Errors are injected into the routines and the fault-tolerance code as well.
 
-\begin{SCfigure}
-\includegraphics[width=6cm]{vuln-gsl.png}
+\begin{figure}
+\includegraphics[width=6cm,natwidth=440,natheight=401]{vuln-gsl.png}
 \caption{Error vulnerability of GSL routines. The figure shows the fraction of entries in the output matrix (the vertical axis) that have an error large than some magnitude (the horizontal axis). The fault-tolerance mechanism we have used here have reduced the occurances of errors of all magnitudes by one magnitude for routines Rank-K update and Matrix-matrix multication, and has removed the worst errors in the TRSV linear solver. This proves the fault-tolerant versions of the routines are effective.}
 \label{vulnerabilityGSL}
-\end{SCfigure}
+\end{figure}
 
 \subsection{List of fault injection applications}
 
@@ -141,11 +141,11 @@ As mentioned before, soft faults would cause corruption in outputs and change th
 \end{itemize}
 
 
-\begin{SCfigure}
-\includegraphics[width=8cm]{flow.png}
+\begin{figure}
+\includegraphics[width=8cm,natwidth=560,natheight=507]{flow.png}
 \caption{Block diagram of fault-tolerant routines showing various parts: input backup, the original routine, result checkers and input restoration. The entire fault-tolerant routine is wrapped in a function call that has the same argument format as the original one, making it easy to be seamlessly integrated into applications.}
 \label{faultRoutinesBlockDiagram}
-\end{SCfigure}
+\end{figure}
 
 
 \section{Algorithmic Error Checkers}
@@ -293,7 +293,7 @@ In this scenario, the only place (in this source code) we can protect the values
 
 \begin{figure}[h!]
 \begin{center}
-\includegraphics[width=10cm]{n_replica_correct_runs_cdb1.png}
+\includegraphics[width=10cm,natwidth=1000,natheight=800]{n_replica_correct_runs_cdb1.png}
 \end{center}
 \caption{Effectiveness of pointer and index replication in RK4 integrator. The X axis is how many times each pair of replica is used and the Y axis is how many occurrances of a loop variable to protect. Obviously, we have the best resilience when all occurrances are protected. The interesting discovery is that using each replica twice instead of once has the best resilience. The color of the cells indicate the relative resilience: the brighter, the more resilient.}
 \label{fig:greenMtx}
@@ -385,7 +385,7 @@ FT 1e-9       & 20\%  & 36.8    & 5.83e-6  & 159.07s& 198.8s \\
 
 \begin{figure}[h!]
 \begin{center}
-\includegraphics[width=16cm]{OverallMetric_Lasso_Boxplot.png}
+\includegraphics[width=16cm,natwidth=1156,natheight=725]{OverallMetric_Lasso_Boxplot.png}
 \end{center}
 \caption{Visualization of overall metrics of 73718 runs of Lasso throuout 256 different configurations. The facets correspond to different input sizes. The X and Y axes inside one facet correspond to different error checker thresholds and the overall metrics.}
 \end{figure}
@@ -412,7 +412,7 @@ FT 1e-10       & 15\% & 30      & 1.64e-6 & 37.65s & 44.29s \\
 
 \begin{figure}[h!]
 \begin{center}
-\includegraphics[width=16cm]{Overall_Metric_DRC.png}
+\includegraphics[width=16cm,natwidth=1160,natheight=744]{Overall_Metric_DRC.png}
 \end{center}
 \caption{Visualization of overall metrics of 14936 runs of DRC throughout 95 different configurations. The facets correspond to different input sizes. The X and Y axes inside one facet correspond to different error checker thresholds and the overall metrics.}
 \end{figure}
@@ -435,11 +435,11 @@ T=(2-c) B + \frac{1-c}{c} \cdot R
 
 Where $c$ and $B$ are respectively the probability and the time it would take for the non-fault-tolerant version of this routine to complete under a certain fault rate and $R$ is the time spent in recovery from segmentation faults.
 
-\begin{SCfigure}
-\includegraphics[width=8cm]{model1.png}
+\begin{figure}
+\includegraphics[width=8cm,natwidth=488,natheight=243]{model1.png}
 \label{markovModel}
 \caption{Markov Model used for modeling running time under low error rates.}
-\end{SCfigure}
+\end{figure}
 
 \section{Conclusion}
 
