@@ -1,6 +1,5 @@
-\documentclass[prodmode,acmtecs]{acmsmall} % Aptara syntax
+\documentclass[prodmode,acmtecs]{acmconf} % Aptara syntax
 \usepackage{url}
-%\usepackage{fontspec}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{color}
@@ -19,13 +18,19 @@
   \textcolor{blue}{GB: #1}
 }
 
+\ConferenceShortName{ICS}
+\ConferenceName{International Conference on Supercomputing}
+
 \title{Library-based fault tolerance for scientific applications}
 \author{Sui Chen
-\affil{Louisiana State University}
+%\affil{Louisiana State University}
 Greg Bronevetsky, Marc Casas-Guix
-\affil{Lawrence Livermore National Laboratory}}
+%\affil{Lawrence Livermore National Laboratory}
+}
 
 \begin{document}
+
+\maketitle
 
 \section{Introduction}
 \label{sec:intro}
@@ -81,16 +86,17 @@ An accurate N-Body integrator meant for high control over small systems, specifi
 
 \subsection{Error Detection}
 \label{sec:res_tech:err_det}
+
 \subsubsection{Algorithmic Detection}
 \label{sec:res_tech:err_det:algo}
 
 \greg{This section needs performance results. How much slower are the resilient routines and how much more resilient do they become across a range of detection thresholds.}
 
-\paragraph{Matrix-matrix multiplication (MMM)}: 
+\paragraph{Matrix-matrix multiplication (MMM)}:
 Matrix-matrix multiplications are checked using a matrix vector multiplication, making use of this identity: $(A \cdot B) \cdot x = A \cdot (B \cdot x)$. Here x is a generated error-checking vector and $A$ and $B$ are inputs to the matrix-matrix multiplication. Time complexities of the original routine and the checker are $O(n^3)$ and $O(n^2)$ respectively.
 
 
-\paragraph{Matrix-vector multiplication (MVM)}: 
+\paragraph{Matrix-vector multiplication (MVM)}:
 For matrix-vector multiplication $Ax=b$ , note that the sum of the elements in the result vector $b$ is equal to the dot product of the vector composed of column sums of $A$ and $x$. Time complexity of original routine is $O(n^2)$ multiplications and that of the checker is $O(n^2)$ additions.
 
 \paragraph{Symmetric Rank-K update (SYRK)}:
@@ -106,37 +112,62 @@ By using Parseval's Theorem, we can check the result of an FFT of width $n$ in $
 \paragraph{Runge-Kutta PDE Solver (RK)}:
 \greg{Describe the multiple step size checker in Hattrick}.
 
-Those checkers can detect errors greater than a certain numeric threshold in those computations (determined by the user-defined error checker threshold). Once an error beyond the threshold has occurred, a re-calculation would be initiated.
-\greg{You need to be more specific. Each routine produces a result, your checker produces a result. How are these results compared and how is the threshold used to determine if there is an error or not.}
+We evaluate these algorithmic error checkers by measuring their costs and effectiveness when running at different error rates on different types of inputs.
 
-In the following sections we would show that the error tolerance could not be arbitrarily small in order to be helpful in providing fault-tolerance when we take into account the checker itself may be unreliable since it's also vulnerable to soft errors.
-\greg{How is this shown? We certainly do show tighter detection tolerances cause longer executions, which cause more vulnerability. However, this is not the same as what you've just described}
+Experiment 1: Measure performance degradation of using error detectors as input sizes increase. In case of RK if we can run a version that doesn't do the multiple step sizes, do so but if this is difficult then don't worry about it.
 
-Although checkers are faster than the routines they protect, the unreliability of those checkers and the ensuing ``false alarms'' might trigger redundant re-calculations that are unnecessary, causing the application to run for much longer. This is specially true with an overly small error detection threshold. On the other hand, an overly loose detection threshold may fail to detect data corruption in output files. The results would be discussed in the results section.
+Experiment 2: Measure the error in the outputs of the algorithms with and without the algorithmic detectors. 
+First, show a probability distribution histogram for all the codes at one error rate, input size and algorithmic detection threshold.
+Then show a summary of the entire space using the same heatmaps that we're using for final application results.
+Put the input size and error rate on the y-axis and the detection threshold on the x-axis.
+The color in each box should be the fraction of entries in the output that have an error of a given magnitude.
+Show a separate plot for a few different magnitudes.
+
+Experiment 3: Measure the fraction fraction of routine runs that are interrupted by the detection of an error.
+Display this information via the same heatmaps as above.
+
+For each experiment we need to include a discussion of what it means for how these checkers behave within the full-application runs.
+
+%Those checkers can detect errors greater than a certain numeric threshold in those computations (determined by the user-defined error checker threshold). Once an error beyond the threshold has occurred, a re-calculation would be initiated.
+%\greg{You need to be more specific. Each routine produces a result, your checker produces a result. How are these results compared and how is the threshold used to determine if there is an error or not.}
+
+%In the following sections we would show that the error tolerance could not be arbitrarily small in order to be helpful in providing fault-tolerance when we take into account the checker itself may be unreliable since it's also vulnerable to soft errors.
+%\greg{How is this shown? We certainly do show tighter detection tolerances cause longer executions, which cause more vulnerability. However, this is not the same as what you've just described}
+
+%Although checkers are faster than the routines they protect, the unreliability of those checkers and the ensuing ``false alarms'' might trigger redundant re-calculations that are unnecessary, causing the application to run for much longer. This is specially true with an overly small error detection threshold. On the other hand, an overly loose detection threshold may fail to detect data corruption in output files. The results would be discussed in the results section.
 
 \subsubsection{Memory Fault Detection}
 \label{sec:res_tech:err_det:mem}
 
-Modern operating systems provide convenient means of protecting segmentation faults. A combination of \texttt{siglongjmp} and \texttt{sigsetjmp} are used to recover from segmentation faults. The overhead of this API call is having to copy the processor state into memory, therefore installing them between computation-intensive method calls adds to negligible performance degradation.
+Modern operating systems and hardware efficiently detect accesses to memory regions that are not allocated to the application and make it easy for the application to detect such errors by catching Segmentation Fault and Bus Error signals.
+We have used this mechanism to protect applications from a subset of memory errors.
 
-\subsubsection{Targeted Replication}
-\label{sec:res_tech:err_det:repl}
 
-The third application Hattrick uses a high-accuracy ODE solver that is capable of estimating errors and detecting and reducing errors to a certain level adaptively. Therefore we would only focus on the application's vulnerability to pointer and index corruptions. Replicating critical variables (pointers and indices) and leveraging Byzantine fault tolerance and correcting those pointers and indices during run-time would raise the applications' resistance to soft errors.
+Experiment 1: Show the fraction of runs of each routine that is aborted as a result of a memory error
+
+Errors that do not cause the application to access an invalid memory location are detected by replicating key pointers and loop iteration variables.
+The Hattrick application uses a high-accuracy ODE solver that is capable of estimating errors and detecting and reducing errors to a certain level adaptively. 
+Therefore we would only focus on the application's vulnerability to pointer and index corruptions. 
+Replicating critical variables (pointers and indices) and leveraging Byzantine fault tolerance and correcting those pointers and indices during run-time would raise the applications' resistance to soft errors.
 \greg{Need to explain why we only do this for Hattrick.}
 
-In order to determine a replication strategy we have to determine which variables to replicate and how many replicas to use for replicating them. The following two subsections would be focused on these problems.
+To determine a replication strategy we have to determine which variables to replicate and how many replicas to use for replicating them. The following two subsections would be focused on these problems.
 \greg{The report spends a lot of space talking about this but in the end the conclusion is that we just a pick a few options and evaluate them experimentally. How much space should we devote to this discussion.}
+
+Experiment 2: Measure the effectiveness and performance costs of replication. Need to explain why we don't use it for Lasso and DRC.
 
 \subsection{Recovery via Checkpoint-Restart}
 \label{sec:res_tech:cr}
 
-When errors are detected we roll the application back to the start of the current routine.
-This is done by using \texttt{siglongjmp} and \texttt{sigsetjmp}. \greg{This is the place to describe these routines and how we use them.}
+When errors are detected we employ a recovery method based on checkpoint-restart.
+At the start of each routine the state of all inputs is recorded and an error correcting code is used to ensure that the contents of this backup copy are not corrupted.
+Further, we use the \texttt{sigsetjmp} routine to record the application's execution state at the routine's start.
+If an error is detected during the routine \texttt{siglongjmp} is used to return the application's execution back to the start of the routine (this function unrolls function calls as needed and reloads the process counter and register state).
+The recovery procedure then resets the routine's inputs from their backed-up copies, overwriting any changes or corruptions that may have occurred during the routine's execution, and restarts its execution.
+%A combination of \texttt{siglongjmp} and \texttt{sigsetjmp} are used to recover from segmentation faults. The overhead of this API call is having to copy the processor state into memory, therefore installing them between computation-intensive method calls adds to negligible performance degradation.
 
-Further, since the fault may have corrupted the routine's initial state, it is necessary to protect it via a fast yet simple mechanism with which we can easily identify and fix errors in a routine's inputs. 
-We have implemented a block-checksum-based data correction mechanism. 
-By treating the input array as a matrix and comparing row sums and column sums of the submatrices of that matrix, we are able to detect the existence of errors and fix a fraction of the errors. 
+The backup copy of routine inputs is protected via a block-checksum-based data correction mechanism.
+By treating the input array as a matrix and comparing row sums and column sums of the submatrices of that matrix, we are able to detect the existence of errors and fix a fraction of the errors.
 The protection mechanism has the following parameters:
 \begin{itemize}
 \item{\texttt{N}, the size of the error correcting sum block.}
@@ -145,9 +176,33 @@ The protection mechanism has the following parameters:
 This mechanism is able to correct up to $1/{n^2}$ of the elements in the input array.
 \greg{Which code is being used here? You just say that it is based on block-checksums}.
 
+Experiment 1: Measure the cost of setjmp and longjmp in our routines as the input sizes vary
+Experiment 2: Measure the cost of input backup and input recovery in our routines as the input sizes vary
+
 \section{Evaluation of Resilience Methodology}
 \label{sec:eval}
 
+\greg{This is the section where we put all the pieces together and present the experimental results on full applications. We should describe our main use-case here: user wants to achieve a given accuracy with a given probability and we configure the algorithm to provide this at the lowest cost. QUESTION: how do we pick the parameters of each resilience technique? Which metric is being optimized?}
 
+\subsection{Performance Impact}
+\label{sec:eval:perf}
 
-\end{document}
+Show the Markov model that describes our rollback scheme.
+
+Experiment 1: Measure the slowdown of each application at the optimal configuration
+Experiment 2: Measure the rate of aborts due to algorithmic errors, segfaults and redundant copy mismatches (separate the causes)
+
+\subsection{Result Accuracy}
+\label{sec:eval:acc}
+
+Experiment: Measure the accuracy of the results produced in completed runs, including error bars on the variability of the errors
+
+\subsection{Overall Evaluation}
+\label{sec:eval:overall}
+
+Experiment: Final graph that shows slowdown for each desired probability of perfect results.
+
+\section{Summary}
+\label{sec:summary}
+
+\end{document} 
