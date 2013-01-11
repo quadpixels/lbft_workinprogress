@@ -35,18 +35,27 @@ Greg Bronevetsky, Marc Casas-Guix
 \section{Introduction}
 \label{sec:intro}
 
-HPC systems are becoming larger and more vulnerable to soft faults.
+The increasing size and complexity of (High-Performance Computing) HPC systems is making them increasingly vulnerable to soft faults.
+Soft faults are transient corruptions of circuit state caused by physical phenomena such as strikes by neutrons or alpha particles~\cite{baumann:2005, asciQSER:2005} or thermal electrical noise~\cite{therm_noise:2007}.
+They can affect the state of processor latches and registers and may cause the application to crash or worse, to silently return incorrect results~\cite{mpi_ser:reed:2004}.
+As the electronic feature sizes shrink technology scaling will make soft errors a larger problem~\cite{err_scaling:2012} due to the fact that each circuit element will hold less charge and can thus be disrupted by easily.
+These phenomena make it imperative to develop techniques to make HPC systems resilient to soft faults.
 
-While error correcting codes have been very effective at making memories and caches resilient to soft faults, they are more expensive for protecting core-internal state such as latches and are significantly less effective for checking the correctness of computations.
-Traditional approaches like replication are expensive, making algorithmic resilience techniques a very promising alternative.
+Resilience is a problem that must be addressed at all levels.
+While materials science and circuit design techniques can be used to improve resilience, they come at a cost in reduced power efficiency and performance that an become prohibitive if processors need to be sufficiently reliable to build a large HPC system.
+Techniques such as error correcting codes have been very effective at making memories and caches resilient to soft faults~\cite{mem_errors:2010}.
+However, they are more expensive for protecting core-internal state such as latches and are significantly less effective for checking the correctness of computations.
+Traditional approaches like cross-core or node replication~\cite{rmpi:2011, dyn_cmp_repl:2007} are expensive in their use of computing resources and power and their long error detection latencies require processor state to be frequently checkpointed.
+Processor designs that incorporate instruction replication~\cite{repl_smt:2000} offer fine-grained error detection and rollback but require more power as well as novel hardware features that are not likely to be included in the commodity processors must be used in HPC systems to limit their cost.
 
-However, since such techniques depend on the semantics of the application, they require manual effort to incorporate into applications and may require deep insight into an application's invariants to deploy effectively.
-Fortunately, the software components of most real-world applications are asymmetric in their processor utilization, with most of the time spent in a few components.
-In scientific applications these components are usually various types of libraries, including numeric solvers domain-specific scientific packages.
-This indicates that if by focusing efforts on making key library routines resilient to soft faults it would be possible to efficiently protect the most expensive portions of application code, allowing simpler but more expensive techniques such as replication for the remaining code regions.
+The limitations of automated resilience techniques has motivated the need for algorithmic techniques that can detect and tolerate errors by taking advantage of application-specific properties and invariants~\cite{amg_abft:2012, robustification:2010, 1bft:1984}.
+Although these techniques can be very efficient, they also require manual effort to incorporate into applications and may require deep insight into an application's invariants to deploy effectively.
+Fortunately, because real-world applications spend most of their execution is spent in a few application modules, most soft faults will occur in those modules rather than uniformly throughout the application.
+In scientific applications these modules are usually various types of libraries, including numeric solvers and domain-specific scientific packages.
+This indicates that if by focusing algorithmic resilience efforts on the key library routines, while leaving other modules unprotected or protected via more expensive mechanisms, it is possible to fully protect an application at a low cost.
 
-This paper evaluates this approach in the context of three different types of applications: the Lasso linear solver~\cite{}, the Hattrick gravitational simulation~\cite{} and the DRC acoustic correction application~\cite{}.
-We show how these three applications can be comprehensively protected from soft faults by adding three different resilience mechanisms to each of their routines: algorithmic error checks, replication of critical data structures and checkpoint-restart of individual routines.
+This paper evaluates this approach in the context of three different types of applications: the MPI implementation of using the Alternating Direction Method of Multipliers (ADDR) to solver Lasso problems~\cite{lasso:2011}, the Hattrick gravitational simulation~\cite{hattrick:2012} and the Digital Room Correction (DRC) acoustic correction application~\cite{drc:2012}.
+We show how these three applications can be comprehensively protected from soft faults by adding three different resilience mechanisms to the routines where they spend the most time: algorithmic error checks, replication of critical data structures and checkpoint-restart of individual routines.
 We demonstrate via fault injection experiments that although none of these techniques can individually protect applications from soft faults, their combination is highly effective.
 Further, we demonstrate how these techniques can be parameterized to offer the right level of protection at any given fault rate or input type, and further can be tuned to bound the probability that the application will produce erroneous results or executes for longer than some limit.
 
