@@ -1,4 +1,5 @@
-\documentclass[prodmode,acmtecs]{acmconf} % Aptara syntax
+%\documentclass[prodmode,acmtecs]{acmconf} % Aptara syntax
+\documentclass{sig-alternate}
 \usepackage{url}
 \usepackage{graphicx}
 \usepackage{amsmath}
@@ -18,11 +19,11 @@
   \textcolor{blue}{GB: #1}
 }
 
-\ConferenceShortName{ICS}
-\ConferenceName{International Conference on Supercomputing}
+%\ConferenceShortName{ICS}
+%\ConferenceName{International Conference on Supercomputing}
 
-\title{Library-based fault tolerance for scientific applications}
-\author{Sui Chen
+\title{Comprehensive Algorithmic Resilience for Scientific Applications}
+\author{Sui Chen, 
 %\affil{Louisiana State University}
 Greg Bronevetsky, Marc Casas-Guix
 %\affil{Lawrence Livermore National Laboratory}
@@ -32,10 +33,24 @@ Greg Bronevetsky, Marc Casas-Guix
 
 \maketitle
 
+\begin{abstract}
+As High-Performance Computing (HPC) systems become larger and more complex and the feature sizes of their electronic components grow smaller, the systems become increasingly vulnerable to soft faults.
+Since such faults may cause application crashes or may silently corrupt application results it is necessary to develop techniques to protect applications from such errors at a low cost in performance and power.
+Despite extensive work on general-purpose resilience techniques, they are cost effective for protecting only certain system components, such as memories.
+To provide comprehensive protection for the computations of HPC applications it is necessary to develop algorithmic resilience mechanisms that use the properties of algorithms to provide cost-effective protection.
+
+Algorithmic resilience can be very complex to deploy in applications because a comprehensive resilience strategy must address all the types of errors that an application may experience.
+This includes corruptions to numerical data as well as control information and data structures.
+Full protection requires the combination of multiple techniques including algorithmic error detection, crash detection, replication of key control information as well as support for restart when errors are detected.
+Further, it is necessary to configure the properties of the resilience mechanisms to make sure that they are cost-effectively meeting the user's accuracy and confidence targets.
+This paper shows how all these issues can be resolved comprehensively in the context of three numeric applications.
+
+\end{abstract}
+
 \section{Introduction}
 \label{sec:intro}
 
-The increasing size and complexity of (High-Performance Computing) HPC systems is making them increasingly vulnerable to soft faults.
+The increasing size and complexity of HPC systems is making them increasingly vulnerable to soft faults.
 Soft faults are transient corruptions of circuit state caused by physical phenomena such as strikes by neutrons or alpha particles~\cite{baumann:2005, asciQSER:2005} or thermal electrical noise~\cite{therm_noise:2007}.
 They can affect the state of processor latches and registers and may cause the application to crash or worse, to silently return incorrect results~\cite{mpi_ser:reed:2004}.
 As the electronic feature sizes shrink technology scaling will make soft errors a larger problem~\cite{err_scaling:2012} due to the fact that each circuit element will hold less charge and can thus be disrupted by easily.
@@ -48,13 +63,17 @@ However, they are more expensive for protecting core-internal state such as latc
 Traditional approaches like cross-core or node replication~\cite{rmpi:2011, dyn_cmp_repl:2007} are expensive in their use of computing resources and power and their long error detection latencies require processor state to be frequently checkpointed.
 Processor designs that incorporate instruction replication~\cite{repl_smt:2000} offer fine-grained error detection and rollback but require more power as well as novel hardware features that are not likely to be included in the commodity processors must be used in HPC systems to limit their cost.
 
-The limitations of automated resilience techniques has motivated the need for algorithmic techniques that can detect and tolerate errors by taking advantage of application-specific properties and invariants~\cite{amg_abft:2012, robustification:2010, 1bft:1984}.
-Although these techniques can be very efficient, they also require manual effort to incorporate into applications and may require deep insight into an application's invariants to deploy effectively.
-Fortunately, because real-world applications spend most of their execution is spent in a few application modules, most soft faults will occur in those modules rather than uniformly throughout the application.
-In scientific applications these modules are usually various types of libraries, including numeric solvers and domain-specific scientific packages.
-This indicates that if by focusing algorithmic resilience efforts on the key library routines, while leaving other modules unprotected or protected via more expensive mechanisms, it is possible to fully protect an application at a low cost.
+The limitations of automated resilience techniques has motivated the need for algorithmic techniques that can detect and tolerate errors by taking advantage of application-specific properties and invariants~\cite{amg_abft:2012, robustification:2010, abft:1984}.
+Although these techniques can be very efficient most research work on such techniques has primarily focused on their algorithmic properties and how they can be leveraged to enable accurate error detection.
+While this goal is important, it ignores the full complexity of the problem since it focuses narrowly on errors in numeric data while ignoring errors in control information and data structures.
+In reality a comprehensive solution must incorporate a range of additional techniques such as key variable replication, memory violation detection and localized rollback on detected error, as well as techniques to configure these various resilience methods to achieve the best performance given the user's accuracy and confidence targets.
+%, they also require manual effort to incorporate into applications and may require deep insight into an application's invariants to deploy effectively.
+%Fortunately, because real-world applications spend most of their execution is spent in a few application modules, most soft faults will occur in those modules rather than uniformly throughout the application.
+%In scientific applications these modules are usually various types of libraries, including numeric solvers and domain-specific scientific packages.
+%This indicates that if by focusing algorithmic resilience efforts on the key library routines, while leaving other modules unprotected or protected via more expensive mechanisms, it is possible to fully protect an application at a low cost.
 
-This paper evaluates this approach in the context of three different types of applications: the MPI implementation of using the Alternating Direction Method of Multipliers (ADDR) to solver Lasso problems~\cite{lasso:2011}, the Hattrick gravitational simulation~\cite{hattrick:2012} and the Digital Room Correction (DRC) acoustic correction application~\cite{drc:2012}.
+This paper presents a comprehensive algorithmic resilience approach that considers all of the above issues.
+We demonstrate it on different types of numerical applications: the Alternating Direction Method of Multipliers (ADDR) for Lasso problems~\cite{lasso:2011}, the Hattrick gravitational simulation~\cite{hattrick:2012} and the Digital Room Correction (DRC) acoustic correction application~\cite{drc:2012}.
 We show how these three applications can be comprehensively protected from soft faults by adding three different resilience mechanisms to the routines where they spend the most time: algorithmic error checks, replication of critical data structures and checkpoint-restart of individual routines.
 We demonstrate via fault injection experiments that although none of these techniques can individually protect applications from soft faults, their combination is highly effective.
 Further, we demonstrate how these techniques can be parameterized to offer the right level of protection at any given fault rate or input type, and further can be tuned to bound the probability that the application will produce erroneous results or executes for longer than some limit.
@@ -76,19 +95,27 @@ Describe fault injection framework and how it approximates real faults.
 We evaluate our library-based resilience approach by applying it to the following three applications.
 As they make intensive use library routines, they are ideal testbeds for our proposed fault-tolerance methods.
 
-\greg{This section needs to include more detailed descriptions of the algorithms, the routines where they spend the bulk of their time and what fraction of time is spent there across the range of inputs. We also need to describe the types of inputs we'll be giving them in our experiments.}
-\subsection{Lasso}
+\greg{This section needs to include an experimental breakdown of where the routines spent their time. We also need to describe the types of inputs we'll be giving them in our experiments.}
+
+\subsection{Alternating Direction Method of Multipliers (ADDR)}
 \label{sec:apps:lasso}
-A parallel shrinkage and selection method for linear regression. It computes the equation $Ax=b$, where matrix $A$ and vector $b$ are known. \greg{is it a shrinkage and selection method or an actual solver?}. Utilizes GSL (the GNU Scientific Library)'s linear algebra routines.
+The ADDR method solves under-unconstrained linear problems $Ax=b$ for $x$ ($A$ has fewer rows than columns) while minimizing the function $f(x)$.
+This is an iterative algorithm that spends most of its time in the linear algebra operations, matrix-matrix multiplication, matrix-vector multiplication, rank-k update and Cholesky factorization, using the implementations of these routines from the GNU Scientific Library~\cite{gsl:2011}.
+We focused on a specific application that uses the ADDR method to solve Lasso problems, which are defined as minimizing the function $\frac{1}{2} \left|| Ax - b \right||_2^2 + \lambda*\left|| x \right||_1$.
+In our experiments we considered linear systems of size \textbf{???} that were generated \textbf{???}.
 
 \subsection{DRC: Digital Room Correction}
 \label{sec:apps:drc}
 
-A program used to generate correction filters for acoustic compensation of HiFi and audio system in general. It generates FIR correction filters, which can be used with a real time or offline convolver to provide correction. Utilizes the GSL FFT routine.
+The DRC program generates filters for HiFi audio systems to compensate for the reflection of sounds in a room, using impulse response measurements of the audio equipment and considering the positions of the listeners.
+Although the algorithm is divided into many phases the most computationally intensive step consists of the GSL's implementation of the Fast Fourier Transform.
+\greg{What inputs?}
 
 \subsection{Hattrick}
 \label{sec:apps:hattrick}
-An accurate N-Body integrator meant for high control over small systems, specifically meant for perturbing bodies. Utilizes a differential equation solver routine.
+The Hattrick application simulates the motion of bodies under the effects of gravity.
+It is designed to help discover extra-solar planets by inferring their existence from Transit Timing Variations, where the difference between the times when a planet passes in front of its host star is used to infer the existence and properties of other planets in the system.
+This program spends most of its execution time in the GSL solver for Ordinary Differential Equations to solver the system's equations of motion.
 
 \section{Resilience Techniques}
 \label{sec:res_tech}
@@ -99,44 +126,91 @@ An accurate N-Body integrator meant for high control over small systems, specifi
 \subsubsection{Algorithmic Detection}
 \label{sec:res_tech:err_det:algo}
 
-\greg{This section needs performance results. How much slower are the resilient routines and how much more resilient do they become across a range of detection thresholds.}
-\sui{Performance experiments inserted here: running algorithmic checkers across different input sizes and fault rates: 62x62 to 500x500 matrixes for MM, RK, CD, MV checkers; FFT sizes of $2^8$ to $2^{24}$ for the FFT checker; Error bars should apply here, especially for the Cholesky Decomposition checker}
+%\sui{Performance experiments inserted here: running algorithmic checkers across different input sizes and fault rates: 62x62 to 500x500 matrixes for MM, RK, CD, MV checkers; FFT sizes of $2^8$ to $2^{24}$ for the FFT checker; Error bars should apply here, especially for the Cholesky Decomposition checker}
+
+Each algorithm used by the above application was enhanced with an algorithm-specific checker that validated its results by exploiting some algorithmic identity.
+Each checker computes some aggregate property of the algorithm's results using two different algorithm to produce vectors $v$ and $v'$ and their relative difference by more than some threshold $\tau$, the checker declares that an error has occurred.
+The relative difference is computed as $\frac{\left|| v-v' \right||}{max(\left||v\right||, \left||v'\right||)}$ ???.
 
 \paragraph{Matrix-matrix multiplication (MMM)}:
-Matrix-matrix multiplications are checked using a matrix vector multiplication, making use of this identity: $(A \cdot B) \cdot x = A \cdot (B \cdot x)$. Here x is a generated error-checking vector and $A$ and $B$ are inputs to the matrix-matrix multiplication. Time complexities of the original routine and the checker are $O(n^3)$ and $O(n^2)$ respectively.
-
+The MMM operation $A \cdot B$ is checked using a matrix vector multiplication (MVM), making use of this identity: $(A \cdot B) \cdot x = A \cdot (B \cdot x)$, where $x$ is an error-checking vector.
+This check is efficient because the checker is asymptotically faster than the MMM algorithm, with MVM taking $O(n^2)$ time and MMM $O(n^3)$ time.
+Since we make no assumptions about the distribution of data in the matrixes being multiplied, we set the check vector $x$ to contain all 1's.
 
 \paragraph{Matrix-vector multiplication (MVM)}:
-For matrix-vector multiplication $Ax=b$ , note that the sum of the elements in the result vector $b$ is equal to the dot product of the vector composed of column sums of $A$ and $x$. Time complexity of original routine is $O(n^2)$ multiplications and that of the checker is $O(n^2)$ additions.
+The MVM algorithm $Ax=b$ is checked using a similar identity $(x^TA)x = x^T(Ax) = x^Tb$.
+The product $x^TA$ is a checksum of the columns of matrix $A$ and when $x$ is the vector of 1's, the value used in our experiments, it is the sum of $A$'s columns.
+Although the computation of $x^TA$ involves additions rather than multiplications the complexity of computing $x^TA$ is $O(n^2)$, the same as the original MVM operation, making this check significantly less efficient.
+While this cost can be reduced significantly by computing $x^TA$ once and reusing it in subsequent multiplications by the same matrix, we did not consider it in this paper because MVM took up little application execution time.
+
+\greg{If MVM doesn't matter then why did we protect it? Also, why is the overhead >100\%? Where is the time spent?}
 
 \paragraph{Symmetric Rank-K update (SYRK)}:
-Symmetric Rank-K update is a special case of matrix-matrix multiplication where only the upper/lower half of the output matrix is updated. By decomposing the upper/lower half of the output matrix as a series of sub-matrices (like the sub-cells in a quad tree), the checker takes $O(n^2 \cdot \log{n})$ time, while the original routine woudl take $O(n^3)$.
+The SYRK update is a special case of matrix-matrix multiplication $C = \alpha A \cdot A^T + \beta*C$, where an $nxk$ matrix $A$ is multiplied by itself to produce an $nxn$ matrix with rank $k$, which is added to the $nxn$ matrix $C$.
+By decomposing the upper/lower half of the output matrix as a series of sub-matrices (like the sub-cells in a quad tree), the checker takes $O(n^2 \cdot \log{n})$ time, while the original routine takes $O(n^3)$ time.
 
-\paragraph{Cholesky Decomposition}: \greg{Need to define this decomposition}
-By multiplying back the upper and lower halves, the checker takes as much time as a regular matrix-matrix multiplication would do. The original routine is an iterative one, but it generally runs longer than the checker. \greg{How much longer? Need to quantify.} \sui{Can we quantify it using the performance data?}
+\paragraph{Cholesky Decomposition (CD)}:
+In this decomposition matrix $A$ is decomposed into $L \cdot L^T$ where $L$ is a lower-triangular matrix with a positive diagonal.
+This routine is checked just like MMM by checking the identity $Ac = L \cdot (L^T x)$ where $x$ is the vector of all 1's.
+This check runs in time $O(n^2)$ while the deterministic CD algorithm has $O(n^3)$ complexity.
+The GSL implements an iterative algorithm that runs faster than $O(n^3)$ time but as shown in the experiments below it is significantly slower than our checker.
 
 \paragraph{Fast Fourier Transform (FFT)}:
-By using Parseval's Theorem, we can check the result of an FFT of width $n$ in $O(n)$ time. Time complexity of the original routine is $O(\log{n})$.
-\greg{What is this theorem, how is it used?}
+The FFT algorithm decomposes a function into a sum of sine waves of different frequencies: $f(x) = \sum_{n=0}^{N-1} x_n e^{-i2\pi k n / N}$ for some constant $k$.
+We check the results of FFT by using Parseval's theorem, which states that $\sum_{n=0}^{N-1} \left| x[n] \right|^2 = \frac{1}{N} \sum_{k=0}^{N-1} \left| X[k] \right|^2$, where $x$ is the original function and $X$ is its transform.
+This means that the total energy of the original function is preserved by the transform and provides an $O(n)$ time check for the $O(n log(n))$ FFT algorithm.
 
 \paragraph{Runge-Kutta PDE Solver (RK)}:
-\greg{Describe the multiple step size checker in Hattrick}.
+This algorithm uses the ???-th order Runge-Kutta method for solving Ordinary Differential Equations of the form $\frac{dy}{dx} = f(y, x)$.
+It works by advancing the variable $x$ by steps of size $h$ and using estimates of the derivative $\frac{dy}{dx}$ at each point $x$ to find the value of $y$ at the next point $x+h$.
+The RK method in GSL uses adaptive step-size control where it simultaneously performs the RK method with two step sizes $h$ and $\frac{h}{2}$ (more precise).
+If the difference between the results obtained with the two step sizes are larger than a threshold, the algorithm switches to the smaller step size to maintain accuracy and resumes.
+Since the adaptive step control algorithm can also detect errors we utilize it to this end in our work.
 
-We evaluate these algorithmic error checkers by measuring their costs and effectiveness when running at different error rates on different types of inputs.
+\begin{figure}[ht!]
+%\vspace{-20pt}
+\centering
+\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp1_linalg}
+\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp1_fft}
+%\vspace{-5pt}
+\caption{Overhead of the algorithmic resilience techniques of key application routines}
+\label{fig:algo_ovhd}
+\end{figure}
 
-Experiment 1: Measure performance degradation of using error detectors as input sizes increase. In case of RK if we can run a version that doesn't do the multiple step sizes, do so but if this is difficult then don't worry about it.
+%Experiment 1: Measure performance degradation of using error detectors as input sizes increase. In case of RK if we can run a version that doesn't do the multiple step sizes, do so but if this is difficult then don't worry about it.
+We evaluate the costs of the above algorithmic error checkers by measuring their costs and effectiveness when running at different error rates on different types of inputs.
+Figure~\ref{fig:algo_ovhd} measures the overheads of employing the checkers in each algorithms when no errors are injected.
+The linear algebra routines were executed on $nxn$ square matrixes where $n=(62, 250, 500, 750 and 1000)$.
+FFT ran on inputs upto ??? and RK ran on ???.
+Our experiments show that ???.
 
-Experiment 2: Measure the error in the outputs of the algorithms with and without the algorithmic detectors.
-First, show a probability distribution histogram for all the codes at one error rate, input size and algorithmic detection threshold.
-Then show a summary of the entire space using the same heatmaps that we're using for final application results.
-Put the input size and error rate on the y-axis and the detection threshold on the x-axis.
-The color in each box should be the fraction of entries in the output that have an error of a given magnitude.
-Show a separate plot for a few different magnitudes.
+%Experiment 2: Measure the error in the outputs of the algorithms with and without the algorithmic detectors.
+%First, show a probability distribution histogram for all the codes at one error rate, input size and algorithmic detection threshold.
+%Then show a summary of the entire space using the same heatmaps that we're using for final application results.
+%Put the input size and error rate on the y-axis and the detection threshold on the x-axis.
+%The color in each box should be the fraction of entries in the output that have an error of a given magnitude.
+%Show a separate plot for a few different magnitudes.
 
-Experiment 3: Measure the fraction fraction of routine runs that are interrupted by the detection of an error.
-Display this information via the same heatmaps as above.
+We now evaluate the effectiveness of our algorithmic detectors when errors are injected.
+Figure~\ref{fig:algo_err_dist} shows the fraction of entries in the outputs of each routine (y-axis) that have an error of a given magnitude (x-axis) as error magnitudes span from ??? to ??? and errors are injected at rate ???.
+In this experiment the liner algebra operations were run on matrixes of size ???, FFT on ??? and RK on ???.
+We show results for both the routines with no error checkers as well as routines where error checkers are used with detection thresholds ???.
+The data shows ???.
 
-For each experiment we need to include a discussion of what it means for how these checkers behave within the full-application runs.
+Figure~\ref{fig:algo_err_heatmap} shows the same information across the entire experimental space.
+The y-axis includes all algorithms, input sizes and error rates.
+The x-axis includes several segments for different degrees of error checking: none, as well as checking with thresholds ???. In each segment the x-axis spans over error magnitudes from ??? to ???.
+The box associated with each combination of the four parameters the figure indicates the fraction of outputs that have an error of this magnitude by the shade of gray it is colored with, as indicated in the legend.
+The data shows ???
+
+%Experiment 3: Measure the fraction fraction of routine runs that are interrupted by the detection of an error.
+%Display this information via the same heatmaps as above.
+
+Finally, Figure~\ref{fig:algor_term_heatmap} shows the fraction of algorithm runs during which the error checks detect errors, across all the algorithms, input sizes, error rates and detection types.
+This information is shown in the same format as Figure~\ref{fig:algo_err_heatmap} and is important for informing us about the performance impact of error detection at these error rates since each error detection results in a rollback of application execution.
+The experiments show ???.
+
+\greg{For each experiment we need to include a discussion of what it means for how these checkers behave within the full-application runs.}
 
 %Those checkers can detect errors greater than a certain numeric threshold in those computations (determined by the user-defined error checker threshold). Once an error beyond the threshold has occurred, a re-calculation would be initiated.
 %\greg{You need to be more specific. Each routine produces a result, your checker produces a result. How are these results compared and how is the threshold used to determine if there is an error or not.}
@@ -149,11 +223,22 @@ For each experiment we need to include a discussion of what it means for how the
 \subsubsection{Memory Fault Detection}
 \label{sec:res_tech:err_det:mem}
 
-Modern operating systems and hardware efficiently detect accesses to memory regions that are not allocated to the application and make it easy for the application to detect such errors by catching Segmentation Fault and Bus Error signals.
-We have used this mechanism to protect applications from a subset of memory errors.
+Detecting errors in application data structures requires checkers dedicated for this purpose.
+Depending on the algorithm's properties different error detectors are appropriate.
+In our work we considered the use of access protection hardware and replication of key data.
 
+Since modern systems use 64-bit addressing the range of values that can be assumed by a given pointer is much larger than the amount of memory that can ever be assigned to an application.
+This means that there is a very high probability that the corruption of a given pointer will cause it to point to an unallocated address.
+Once this address is accessed this violation will be detected by the memory protection hardware and communicated to the application via a Segmentation Fault or Bus Error signal.
+This mechanism is very effective and cheap in practice but suffers from a long delay between an error and its detection.
 
-Experiment 1: Show the fraction of runs of each routine that is aborted as a result of a memory error
+An alternative mechanism is to replicate key application variable and to compare the values of the replicas on each access to the variable.
+While more expensive this approach is effective if the number of key variables is small and the cost of rolling back computation is high.
+The next section discusses rollback and how its costs influence the choice of the memory fault detection strategy for each application.
+
+%Experiment 1: Show the fraction of runs of each routine that is aborted as a result of a memory error
+Figure~\ref{fig:mem_aborts} shows the fraction of runs of each routine that is aborted as a result of a memory error across all algorithm configurations, which indicates the performance impact of such errors on applications.
+The data shows that  ???.
 
 Errors that do not cause the application to access an invalid memory location are detected by replicating key pointers and loop iteration variables.
 The Hattrick application uses a high-accuracy ODE solver that is capable of estimating errors and detecting and reducing errors to a certain level adaptively.
@@ -214,5 +299,8 @@ Experiment: Final graph that shows slowdown for each desired probability of perf
 
 \section{Summary}
 \label{sec:summary}
+
+\bibliographystyle{abbrv}
+\bibliography{bibs}
 
 \end{document}
