@@ -27,6 +27,8 @@
 %\affil{Louisiana State University}
 Greg Bronevetsky, Marc Casas-Guix
 %\affil{Lawrence Livermore National Laboratory}
+Lu Peng,
+%\affil{Louisiana State University}
 }
 
 \begin{document}
@@ -161,7 +163,7 @@ We check the results of FFT by using Parseval's theorem, which states that $\sum
 This means that the total energy of the original function is preserved by the transform and provides an $O(n)$ time check for the $O(n log(n))$ FFT algorithm.
 
 \paragraph{Runge-Kutta PDE Solver (RK)}:
-This algorithm uses the ???-th order Runge-Kutta method for solving Ordinary Differential Equations of the form $\frac{dy}{dx} = f(y, x)$.
+This algorithm uses the \sui{4-th order} Runge-Kutta method for solving Ordinary Differential Equations of the form $\frac{dy}{dx} = f(y, x)$.
 It works by advancing the variable $x$ by steps of size $h$ and using estimates of the derivative $\frac{dy}{dx}$ at each point $x$ to find the value of $y$ at the next point $x+h$.
 The RK method in GSL uses adaptive step-size control where it simultaneously performs the RK method with two step sizes $h$ and $\frac{h}{2}$ (more precise).
 If the difference between the results obtained with the two step sizes are larger than a threshold, the algorithm switches to the smaller step size to maintain accuracy and resumes.
@@ -177,12 +179,26 @@ Since the adaptive step control algorithm can also detect errors we utilize it t
 \label{fig:algo_ovhd}
 \end{figure}
 
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp2_1_Example.png}
+\caption{Error magnitude histogram of one routine}
+\end{figure}
+
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp2_2_Heatmap_Error_ConfSpace.png}
+\caption{Error magnitude histogram of the entire configuration space}
+\end{figure}
+
+
+
 %Experiment 1: Measure performance degradation of using error detectors as input sizes increase. In case of RK if we can run a version that doesn't do the multiple step sizes, do so but if this is difficult then don't worry about it.
 We evaluate the costs of the above algorithmic error checkers by measuring their costs and effectiveness when running at different error rates on different types of inputs.
-Figure~\ref{fig:algo_ovhd} measures the overheads of employing the checkers in each algorithms when no errors are injected.
-The linear algebra routines were executed on $nxn$ square matrixes where $n=(62, 250, 500, 750 and 1000)$.
-FFT ran on inputs upto ??? and RK ran on ???.
-Our experiments show that ???.
+Figure \ref{fig:algo_ovhd} measures the overheads of employing the checkers in each algorithms when no errors are injected.
+The linear algebra routines were executed on $nxn$ square matrixes where $n=(62, 250, 500, 750\ and\ 1000)$.
+FFT ran on inputs upto 4M and RK ran on an integral with different intervals $[t_0, t_1]$ where $t_0=0$ and $t_1 \in \{10, 15, 20, 25, 30, 50, 75, 100\}$.
+Our experiments show ???\sui{the effectiveness of the error handlers and the error checkers. Note that the graph shows fault injection experiments at various rates (defined by errors per run).}
 
 %Experiment 2: Measure the error in the outputs of the algorithms with and without the algorithmic detectors.
 %First, show a probability distribution histogram for all the codes at one error rate, input size and algorithmic detection threshold.
@@ -240,11 +256,29 @@ The next section discusses rollback and how its costs influence the choice of th
 Figure~\ref{fig:mem_aborts} shows the fraction of runs of each routine that is aborted as a result of a memory error across all algorithm configurations, which indicates the performance impact of such errors on applications.
 The data shows that  ???.
 
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=1.00\columnwidth]{figs/4_1_2_Exp2_Overhead_Inputsize.png}
+\includegraphics[width=1.00\columnwidth]{figs/4_1_2_Exp2_Effectiveness.png}
+\includegraphics[width=1.00\columnwidth]{figs/4_1_2_Exp2_Expected_Running_Time_Needed.png}
+\caption{Overhead and effectiveness of the pointer protection techniques for the ODE solver}
+\label{fig:rk4_eff_ovhd}
+\end{figure}
+
 Errors that do not cause the application to access an invalid memory location are detected by replicating key pointers and loop iteration variables.
 The Hattrick application uses a high-accuracy ODE solver that is capable of estimating errors and detecting and reducing errors to a certain level adaptively.
 Therefore we would only focus on the application's vulnerability to pointer and index corruptions.
-Replicating critical variables (pointers and indices) and leveraging Byzantine fault tolerance and correcting those pointers and indices during run-time would raise the applications' resistance to soft errors.
-\greg{Need to explain why we only do this for Hattrick.}
+Replicating critical variables (pointers and indices) and leveraging Byzantine fault tolerance and correcting those pointers and indices during run-time would raise the applications' resistance to soft errors \sui{and increase the chance this application would output correct results.}
+
+\sui{Unlike the numerical and FFT routines used in the other two applications, the ODE solver has an stepping function called on the evaluation(s) of each integration step (GSL performs two evaluations per timestep in order to estimate integration error and perform adaptive step size control), which is called much more frequently, on the magnitude of millions of times during the lifetime of the application. Contrarily, the linear algebra routines are only called less than a hundred times during the execution of Lasso with a 10x input, and the FFT routines are called only several hundred times during the execution of DRC with a 30x input. Both are moderate-sized inputs in our experiments.}
+
+\greg{Need to explain why we only do this for Hattrick.} \sui{The checkpointing scheme used here has overhead of having to set signal handlers and perform up-to-date checksum computation of critical data structures. The more often the routines are called, the more frequent the critical data structures need be kept up-to-date, therefore this overhead is larger (non-trivial compated to that for FFT and linear algebra) for a frequently called routine like the integrator. This overhead makes the fault tolerance technique less efficient as it was in linear algebra and FFT routines, bringing it to the same ballpark as the expensive pointer replciation technique. Although it is possible to reduce the frequency of updating the checkpoints, it would also reduce the effectiveness of this method sharply.}
+
+\sui{
+The other reason is, pointer replication performs a better job at maintaining the chance the routine generates correct results (See figure \ref{fig:rk4_eff_ovhd}). This would lower the expected cost the user would have to pay to get the correct result despite the overhead. The method of computing this expected running time is described in greater detail in section \ref{sec:eval:perf}'s Markov Model. From \ref{fig:rk4_eff_ovhd} one could see the ratio of perfect runs out of all runs (that are completed or incomplete) and the number of faults per run forms an almost linear relationship. The linear regression model is used to evaluate the position of the guide points needed for the following experiments.
+} 
+
+\sui{Refer to Figure \ref{fig:rk4_eff_ovhd} one could see the number of expected running time of different configurations if one wants to get a correct output from the application in a faulty environments. As the number of faults injected per run increases, the expected running time of the original, non-fault-tolerant application increases at a much faster rate than the other fault-tolerant counterparts. In real life scientific applications that run much longer, it's likely that a fault could hit the application several times before it completes. In such situations, the replication-only resilience technology produces the least expected number of runs needed to get a correct answer.}
 
 To determine a replication strategy we have to determine which variables to replicate and how many replicas to use for replicating them. The following two subsections would be focused on these problems.
 \greg{The report spends a lot of space talking about this but in the end the conclusion is that we just a pick a few options and evaluate them experimentally. How much space should we devote to this discussion.}
@@ -283,6 +317,9 @@ Experiment 2: Measure the cost of input backup and input recovery in our routine
 \label{sec:eval:perf}
 
 Show the Markov model that describes our rollback scheme.
+
+\sui{When a user wants to run an application under a faulty environment and obtain correct results, s/he would have to expect to run a part of this application multiple times in case the application aborts due to memory access errors or return useless incorrect results. The user might want to have the application return to a certain checkpoint, or restart the entire application should any unrecoverable occurs. The cost of rollback, and the chance of each type of errors occurs at a different rate. The Markov model comes into play here with its capability to capture all these parameters of experiments we have already run and predict the running time of the applications at configurations not experimented with.}
+
 
 Experiment 1: Measure the slowdown of each application at the optimal configuration
 Experiment 2: Measure the rate of aborts due to algorithmic errors, segfaults and redundant copy mismatches (separate the causes)
