@@ -174,6 +174,7 @@ Since the adaptive step control algorithm can also detect errors we utilize it t
 \centering
 \includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp1_linalg}
 \includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp1_fft}
+\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Overall_Breakdown.png}
 %\vspace{-5pt}
 \caption{Overhead of the algorithmic resilience techniques of key application routines}
 \label{fig:algo_ovhd}
@@ -182,14 +183,16 @@ Since the adaptive step control algorithm can also detect errors we utilize it t
 \begin{figure}[ht!]
 \centering
 \includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp2_1_Example.png}
-\caption{Error magnitude histogram of one routine}
+\caption{Error magnitude histogram showing the effectiveness of the error detector}
 \end{figure}
 
 \begin{figure}[ht!]
 \centering
 \includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp2_2_Heatmap_Error_ConfSpace.png}
+\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp2_2_Heatmap_Error_ConfSpace_RK4.png}
 \caption{Error magnitude histogram of the entire configuration space}
 \end{figure}
+
 
 
 
@@ -199,6 +202,10 @@ Figure \ref{fig:algo_ovhd} measures the overheads of employing the checkers in e
 The linear algebra routines were executed on $nxn$ square matrixes where $n=(62, 250, 500, 750\ and\ 1000)$.
 FFT ran on inputs upto 4M and RK ran on an integral with different intervals $[t_0, t_1]$ where $t_0=0$ and $t_1 \in \{10, 15, 20, 25, 30, 50, 75, 100\}$.
 Our experiments show ???\sui{the effectiveness of the error handlers and the error checkers. Note that the graph shows fault injection experiments at various rates (defined by errors per run).}
+
+\sui{There are roughly three types of fault rates: 1) very high fault rates (more than tens of errors per run), under which the application would barely complete running; 2) medium fault rates (1 to 10 errors per run), where the rate that the application completes running is very sensitive to the fault rate (because for a non-resilient application, just one error is enough to cause a segmentation fault and abort the application) and 3) low error rates, smaller than 1 errors per run. The effectiveness of the fault detector is most visible at fault rates from under 1 faults per run to several errors per run, which is visible from the histograms that the vertical bars indicating a run with algorithmic detectors is generally brighter, therefore less erroneous; when the error rates goes beyond 10 errors per run, the effectiveness of the signal handlers become more noticable, rising the chance the application would complete.}
+
+\sui{At higher error rates, the signal handlers enable more runs to complete as well as allowing erroneous results to go into the output. More erroneous results are allowed into the final output by the signal handler than the erroneous intermediate corrected by the algorithmic checker. That is why from the histograms, some vertical bars indicating fault-tolerant runs at a very high error rate would look darker.}
 
 %Experiment 2: Measure the error in the outputs of the algorithms with and without the algorithmic detectors.
 %First, show a probability distribution histogram for all the codes at one error rate, input size and algorithmic detection threshold.
@@ -212,6 +219,8 @@ Figure~\ref{fig:algo_err_dist} shows the fraction of entries in the outputs of e
 In this experiment the liner algebra operations were run on matrixes of size ???, FFT on ??? and RK on ???.
 We show results for both the routines with no error checkers as well as routines where error checkers are used with detection thresholds ???.
 The data shows ???.
+
+\sui{The RK4 integrator does not have an algorithmic checker that works in a similar way and can precisely detect algorithmic error upon the completion of an integration, and we're relying on the integrator's built-in adaptive step size control capabilities that is able to control errors. This method is still not able to completely prevent algorithmic errors from occurring in the final output, as is shown in the histogram.}
 
 Figure~\ref{fig:algo_err_heatmap} shows the same information across the entire experimental space.
 The y-axis includes all algorithms, input sizes and error rates.
@@ -275,7 +284,7 @@ Replicating critical variables (pointers and indices) and leveraging Byzantine f
 \greg{Need to explain why we only do this for Hattrick.} \sui{The checkpointing scheme used here has overhead of having to set signal handlers and perform up-to-date checksum computation of critical data structures. The more often the routines are called, the more frequent the critical data structures need be kept up-to-date, therefore this overhead is larger (non-trivial compated to that for FFT and linear algebra) for a frequently called routine like the integrator. This overhead makes the fault tolerance technique less efficient as it was in linear algebra and FFT routines, bringing it to the same ballpark as the expensive pointer replciation technique. Although it is possible to reduce the frequency of updating the checkpoints, it would also reduce the effectiveness of this method sharply.}
 
 \sui{
-The other reason is, pointer replication performs a better job at maintaining the chance the routine generates correct results (See figure \ref{fig:rk4_eff_ovhd}). This would lower the expected cost the user would have to pay to get the correct result despite the overhead. The method of computing this expected running time is described in greater detail in section \ref{sec:eval:perf}'s Markov Model. From \ref{fig:rk4_eff_ovhd} one could see the ratio of perfect runs out of all runs (that are completed or incomplete) and the number of faults per run forms an almost linear relationship. The linear regression model is used to evaluate the position of the guide points needed for the following experiments.
+The other reason is, pointer replication performs a better job at maintaining the chance the routine generates correct results (See figure \ref{fig:rk4_eff_ovhd}). As mentioned before, the RK4 integrator does not have an effective checker that takes its output and tells the user whether the output is correct. As the user can't know whether a re-run is necessary and the user should be concerned by the expected time by which s/he can expect a correct output. Therefore, a higher chance of producing correct results would lower the expected cost the user would have to pay to get the correct result despite the overhead. The method of computing this expected running time is described in greater detail in section \ref{sec:eval:perf}'s Markov Model. From \ref{fig:rk4_eff_ovhd} one could see the ratio of perfect runs out of all runs (that are completed or incomplete) and the number of faults per run forms an almost linear relationship. The linear regression model is used to evaluate the position of the guide points needed for the following experiments.
 } 
 
 \sui{Refer to Figure \ref{fig:rk4_eff_ovhd} one could see the number of expected running time of different configurations if one wants to get a correct output from the application in a faulty environments. As the number of faults injected per run increases, the expected running time of the original, non-fault-tolerant application increases at a much faster rate than the other fault-tolerant counterparts. In real life scientific applications that run much longer, it's likely that a fault could hit the application several times before it completes. In such situations, the replication-only resilience technology produces the least expected number of runs needed to get a correct answer.}
