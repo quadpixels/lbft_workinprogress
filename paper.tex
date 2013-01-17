@@ -23,7 +23,7 @@
 %\ConferenceName{International Conference on Supercomputing}
 
 \title{Comprehensive Algorithmic Resilience for Scientific Applications}
-\author{Sui Chen, 
+\author{Sui Chen,
 %\affil{Louisiana State University}
 Greg Bronevetsky, Marc Casas-Guix,
 %\affil{Lawrence Livermore National Laboratory}
@@ -133,13 +133,14 @@ This program spends most of its execution time in the GSL solver for Ordinary Di
 Each algorithm used by the above application was enhanced with an algorithm-specific checker that validated its results by exploiting some algorithmic identity.
 Each checker computes some aggregate property of the algorithm's results using two different algorithm to produce vectors $v$ and $v'$ and their relative difference by more than some threshold $\tau$, the checker declares that an error has occurred.
 The relative difference is computed as $\frac{\left|| v-v' \right||}{max(\left||v\right||, \left||v'\right||)}$ ???.
+Each error detection causes the routine's execution to be restarted using the rollback mechanism described in Section~\ref{sec:res_tech:cr}.
 
-\paragraph{Matrix-matrix multiplication (MMM)}:
+\paragraph{Matrix-matrix multiplication (MMM)}
 The MMM operation $A \cdot B$ is checked using a matrix vector multiplication (MVM), making use of this identity: $(A \cdot B) \cdot x = A \cdot (B \cdot x)$, where $x$ is an error-checking vector.
 This check is efficient because the checker is asymptotically faster than the MMM algorithm, with MVM taking $O(n^2)$ time and MMM $O(n^3)$ time.
 Since we make no assumptions about the distribution of data in the matrixes being multiplied, we set the check vector $x$ to contain all 1's.
 
-\paragraph{Matrix-vector multiplication (MVM)}:
+\paragraph{Matrix-vector multiplication (MVM)}
 The MVM algorithm $Ax=b$ is checked using a similar identity $(x^TA)x = x^T(Ax) = x^Tb$.
 The product $x^TA$ is a checksum of the columns of matrix $A$ and when $x$ is the vector of 1's, the value used in our experiments, it is the sum of $A$'s columns.
 Although the computation of $x^TA$ involves additions rather than multiplications the complexity of computing $x^TA$ is $O(n^2)$, the same as the original MVM operation, making this check significantly less efficient.
@@ -148,17 +149,17 @@ Although the computation of $x^TA$ involves additions rather than multiplication
 
 \greg{If MVM doesn't matter then why did we protect it? Also, why is the overhead >100\%? Where is the time spent?}
 
-\paragraph{Symmetric Rank-K update (SYRK)}:
-The SYRK update is a special case of matrix-matrix multiplication $C = \alpha A \cdot A^T + \beta*C$, where an $nxk$ matrix $A$ is multiplied by itself to produce an $nxn$ matrix with rank $k$, which is added to the $nxn$ matrix $C$.
+\paragraph{Symmetric Rank-K update (SYRK)}
+The SYRK update is a special case of matrix-matrix multiplication $C = \alpha A \cdot A^T + \beta*C$, where an $n \times k$ matrix $A$ is multiplied by itself to produce an $n \times n$ matrix with rank $k$, which is added to the $nxn$ matrix $C$.
 By decomposing the upper/lower half of the output matrix as a series of sub-matrices (like the sub-cells in a quad tree), the checker takes $O(n^2 \cdot \log{n})$ time, while the original routine takes $O(n^3)$ time.
 
-\paragraph{Cholesky Decomposition (CD)}:
+\paragraph{Cholesky Decomposition (CD)}
 In this decomposition matrix $A$ is decomposed into $L \cdot L^T$ where $L$ is a lower-triangular matrix with a positive diagonal.
 This routine is checked just like MMM by checking the identity $Ac = L \cdot (L^T x)$ where $x$ is the vector of all 1's.
 This check runs in time $O(n^2)$ while the deterministic CD algorithm has $O(n^3)$ complexity.
 The GSL implements an iterative algorithm that runs faster than $O(n^3)$ time but as shown in the experiments below it is significantly slower than our checker.
 
-\paragraph{Fast Fourier Transform (FFT)}:
+\paragraph{Fast Fourier Transform (FFT)}
 The FFT algorithm decomposes a function into a sum of sine waves of different frequencies: $f(x) = \sum_{n=0}^{N-1} x_n e^{-i2\pi k n / N}$ for some constant $k$.
 We check the results of FFT by using Parseval's theorem, which states that $\sum_{n=0}^{N-1} \left| x[n] \right|^2 = \frac{1}{N} \sum_{k=0}^{N-1} \left| X[k] \right|^2$, where $x$ is the original function and $X$ is its transform. GSL implements optimized radix 2, 3, 4, 5, 6 and 7 subtransform routines as well as a general radix-N FFT routine. The subtransforms are optimized and consume $O(n log(n))$ time and the general one consumes $O(n^2)$ time. Therefore, GSL has a scheduling algorithm that factorizes the length of the input FFT, running the subtransforms whenever possible, using the fallback general radix-N routine only for the remaining factors.
 The theorem applies to FFT of any radix.
@@ -172,50 +173,16 @@ Computing the sum requires merely $O(n)$ additions while this non-iterative FIR 
 the overhead of this checker is very small (less than 5\%).
 Since this algorithm has only output and no input and therefore it does not need to have to be reinforced with input backup as other routines do.
 
-\paragraph{Runge-Kutta PDE Solver (RK)}:
+\paragraph{Runge-Kutta PDE Solver (RK)}
 This algorithm uses the 4-th order Runge-Kutta method for solving Ordinary Differential Equations of the form $\frac{dy}{dx} = f(y, x)$.
 It works by advancing the variable $x$ by steps of size $h$ and using estimates of the derivative $\frac{dy}{dx}$ at each point $x$ to find the value of $y$ at the next point $x+h$.
-The RK method in GSL uses adaptive step-size control (user-selectable) where it simultaneously performs the RK method with two step sizes $h$ and $\frac{h}{2}$ (more precise).
-If the difference between the results obtained with the two step sizes are larger than a threshold, the algorithm switches to the smaller step size to maintain accuracy and resumes.
-Since the adaptive step control algorithm can also detect errors we utilize it to this end in our work.
-
-\begin{figure}[ht!]
-%\vspace{-20pt}
-\centering
-\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp1_linalg}
-\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp1_fft}
-\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Overall_Breakdown.png}
-%\vspace{-5pt}
-\caption{Overhead of the algorithmic resilience techniques of key application routines}
-\label{fig:algo_ovhd}
-\end{figure}
-
-\begin{figure}[ht!]
-\centering
-\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp2_1_Example.png}
-\caption{Error magnitude histogram showing the effectiveness of the error detector}
-\end{figure}
-
-\begin{figure}[ht!]
-\centering
-\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp2_2_Heatmap_Error_ConfSpace.png}
-\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp2_2_Heatmap_Error_ConfSpace_RK4.png}
-\caption{Error magnitude histogram of the entire configuration space}
-\end{figure}
-
-
-
-
-%Experiment 1: Measure performance degradation of using error detectors as input sizes increase. In case of RK if we can run a version that doesn't do the multiple step sizes, do so but if this is difficult then don't worry about it.
-We evaluate the costs of the above algorithmic error checkers by measuring their costs and effectiveness when running at different error rates on different types of inputs.
-Figure \ref{fig:algo_ovhd} measures the overheads of employing the checkers in each algorithms when no errors are injected.
-The linear algebra routines were executed on $nxn$ square matrixes where $n=(62, 250, 500, 750\ and\ 1000)$.
-FFT ran on inputs upto 4M and RK ran on an integral with different intervals $[t_0, t_1]$ where $t_0=0$ and $t_1 \in \{10, 15, 20, 25, 30, 50, 75, 100\}$.
-Our experiments show ???\sui{the effectiveness of the error handlers and the error checkers. Note that the graph shows fault injection experiments at various rates (defined by errors per run).}
-
-\sui{There are roughly three types of fault rates: 1) very high fault rates (more than tens of errors per run), under which the application would barely complete running; 2) medium fault rates (1 to 10 errors per run), where the rate that the application completes running is very sensitive to the fault rate (because for a non-resilient application, just one error is enough to cause a segmentation fault and abort the application) and 3) low error rates, smaller than 1 errors per run. The effectiveness of the fault detector is most visible at fault rates from under 1 faults per run to several errors per run, which is visible from the histograms that the vertical bars indicating a run with algorithmic detectors is generally brighter, therefore less erroneous; when the error rates goes beyond 10 errors per run, the effectiveness of the signal handlers become more noticable, rising the chance the application would complete.}
-
-\sui{At higher error rates, the signal handlers enable more runs to complete as well as allowing erroneous results to go into the output. More erroneous results are allowed into the final output by the signal handler than the erroneous intermediate corrected by the algorithmic checker. That is why from the histograms, some vertical bars indicating fault-tolerant runs at a very high error rate would look darker.}
+The RK method in GSL uses adaptive step-size control where it simultaneously performs the RK method with two step sizes $h$ and $\frac{h}{2}$ (more precise).
+If the difference between the results obtained with the two step sizes are larger than a high water-mark threshold, the algorithm switches to the smaller step size to maintain accuracy and resumes.
+If it is smaller than a low water-mark threshold, the algorithm switches to a larger step size.
+Because soft errors will usually cause significant differences between the two computations, the adaptive step size control algorithm is naturally fault tolerant.
+It will react to such errors by rolling back, temporarily increasing its step size and then reverting to the original step size when it observes that this is safe.
+As such, we utilize this algorithm to protect the computations within individual RK4 steps from soft errors.
+However, computations in user-provided function derivative functions are not checked since their invariants are unknown.
 
 %Experiment 2: Measure the error in the outputs of the algorithms with and without the algorithmic detectors.
 %First, show a probability distribution histogram for all the codes at one error rate, input size and algorithmic detection threshold.
@@ -223,27 +190,151 @@ Our experiments show ???\sui{the effectiveness of the error handlers and the err
 %Put the input size and error rate on the y-axis and the detection threshold on the x-axis.
 %The color in each box should be the fraction of entries in the output that have an error of a given magnitude.
 %Show a separate plot for a few different magnitudes.
+\subsubsection{Memory Fault Detection}
+\label{sec:res_tech:err_det:mem}
+
+Detecting errors in application data structures requires checkers dedicated for this purpose.
+Depending on the algorithm's properties different error detectors are appropriate.
+In our work we considered the use of access protection hardware and replication of key data.
+
+Since modern systems use 64-bit addressing the range of values that can be assumed by a given pointer is much larger than the amount of memory that can ever be assigned to an application.
+This means that there is a very high probability that the corruption of a given pointer will cause it to point to an unallocated address.
+Once this address is accessed this violation will be detected by the memory protection hardware and communicated to the application via a Segmentation Fault or Bus Error signal.
+This mechanism is cheap but suffers from a long delay between an error and its detection.
+
+An alternative mechanism is to replicate key application variable and to compare the values of the replicas on each access to the variable.
+While more expensive, this approach is effective if the number of key variables is small and the cost of rolling back computation is high.
+
+The low cost of hardware memory protection mechanisms means that they are deployed in protecting all our routines.
+In contrast, replication is only used to protect the RK routine because it is more sensitive to soft errors than the others and the low detection latency provided by replication ensures that any state corruptions are quickly corrected and have little impact on execution time.
+This is important for resilience as well as performance since slowdowns due to frequent rollbacks increase the total number of errors the application is exposed to.
+
+\subsection{Recovery via Checkpoint-Restart and Replication}
+\label{sec:res_tech:cr}
+
+When errors are detected we employ a recovery method based on checkpoint-restart, where routine state is recorded at key locations and whenever an algorithmic or memory error is detected we roll back to that point in its execution.
+Rollbacks are implemented via the \texttt{sigsetjmp}/\texttt{siglongjmp} routines.
+\texttt{sigsetjmp} record the application's execution state (registers and stack pointer) at the time of the checkpoint.
+On error detection \texttt{siglongjmp} returns the application to the same execution point, unrolling any function calls between the checkpoint and the error detection.
+This method is useful for rolling back to checkpoints recorded in the same function or in a caller function.
+When execution returns to the \texttt{sigsetjmp} call the checkpointed portions of the routine's state are recovered and execution repeats.
+% The overhead of this API call is having to copy the processor state into memory, therefore installing them between computation-intensive method calls adds to negligible performance degradation.
+
+Checkpoint data is protected using two different mechanisms.
+Pointers and scalars are replicated such that the checkpoint contains two copies of each.
+Arrays of floating point numbers are protected via a block-checksum-based error correcting code..
+By treating the input array as a matrix and comparing row sums and column sums of the submatrices of that matrix, we are able to detect the existence of errors and fix a fraction of the errors.
+The protection mechanism has the following parameters:
+\begin{itemize}
+\item{\texttt{N}, the size of the error correcting sum block.}
+\item{\texttt{ECC\_ECC}, whether or not the error correcting code itself should be corrected.}
+\end{itemize}
+This mechanism is able to correct up to $1/{n^2}$ of the elements in the input array.
+\greg{Which code is being used here? You just say that it is based on block-checksums}.
+
+The structure of each routine determines how checkpointing is deployed.
+All routines except RK are monolithic code blocks that take a relatively large amount of data as input, operate on it and then return.
+In contrast, RK takes in very little input and operates as a long sequence of steps, each of which involves a call to a user-provided derivative routine.
+As such, we checkpoint the state of non-RK routines immediately after the call to the routine and include in this checkpoint the routine's arguments and contents of the floating point input buffers \greg{is this correct?}.
+Because RK's checkpoints are very small and it is more sensitive to errors, it is checkpointed periodically during its execution with a fixed number of steps between checkpoints.
+As our experiments \greg{where?} show, the choice of the RK checkpoint period significantly affects its efficiency with longer periods suffering from more overhead due to rollbacks and short period spending more time checkpointing.
+
+Experiment 1: Measure the cost of setjmp and longjmp in our routines as the input sizes vary
+Experiment 2: Measure the cost of input backup and input recovery in our routines as the input sizes vary
+
+\subsection{Evaluation of Subroutine Resilience}
+\label{sec:res_tech:eval}
+
+\subsubsection{Linear Algebra and Integer Routines}
+\label{sec:res_tech:eval:la_int}
+
+\paragraph{Overheads}
+%\label{sec:res_tech:eval:ovhd}
+
+\begin{figure}[ht!]
+%\vspace{-20pt}
+\centering
+\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp1_linalg}
+\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp1_fft}
+%\vspace{-5pt}
+\caption{Overhead of resilience techniques when errors are not injected}
+\label{fig:routine_detect_ovhd}
+\end{figure}
+
+%Experiment 1: Measure performance degradation of using error detectors as input sizes increase. In case of RK if we can run a version that doesn't do the multiple step sizes, do so but if this is difficult then don't worry about it.
+We evaluate the costs of the above algorithmic error checkers by measuring their costs and effectiveness when running at different error rates on different types of inputs.
+Figure \ref{fig:routine_detect_ovhd} measures the overheads of employing the algorithmic error detectors when no errors are injected, reporting the average of \greg{???} runs.
+The linear algebra routines were executed on $nxn$ square matrixes where $n$ varies from 100 to 1000.
+FFT ran on inputs vectors with 128K to 4M entries and RK ran on an integral with intervals $[0, t_1]$ where $t_1 \in \{10, 15, 20, 25, 30, 50, 75, 100\}$. \greg{What function was being computed by RK?}
+As our experiments show, the cost of algorithmic error detection is low and drops with increasing input sizes.
+
+\begin{figure}[ht!]
+%\vspace{-20pt}
+\centering
+\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Overall_Breakdown.png}
+%\vspace{-5pt}
+\caption{Overhead of resilience techniques when errors are injected}
+\label{fig:routine_all_ovhd}
+\end{figure}
+
+Figure~\ref{fig:routine_all_ovhd} shows the overhead of all resilience techniques with no fault injection.
+The data shows that checkpointing consumes as much, if not more, time than error detection but that this cost grows more slowly than the routines' computational cost.
+In routines MV and RK the inputs are sufficiently small that checkpointing has negligible cost.
+Howveer, because MV runs quickly and because RK takes many checkpoints (\greg{what's the period in this experiment?}), the cost of saving processor state is small but not negligible.
+
+Finally, Figure~\ref{fig:routine_exp_exec} documents the overhead of resilience when errors are injected into application execution, accounting for the slowdowns due to the resilience mechanisms as well as rollbacks due to error detections.
+Each routine's graph shows $\frac{\texttt{Time with Errors}}{\texttt{Time No Errors}}$, where the \texttt{Time with Errors} is average increase execution time of a resilient or non-resilient version of the routine when running on the same range of inputs as above, and \texttt{Time No Errors} is the execution time of the non-resilient version on the same inputs when no errors are injected.
+The graph for each routine reports this metric for all of the above input sizes, error injection rates between 1e-8 and 1e-11 \greg{confirm!} and all resilience configurations (no resilience and resilience with detection thresholds between 1e-6 and 1e-8), as the average time of \greg{???} runs.
+The data points within each figure are organized horizontally according to the average number of errors injected into runs with the given input size and at the given injection rate. \greg{Do the error counts include errors after rollbacks?}
+This average error count is shown on the x-axis.
+All runs with the same resilience configuration are joined together into a line to highlight its properties.
+
+The data shows \greg{???}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\paragraph{Output Accuracy}
+%\label{sec:res_tech:eval:accu}
+
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp2_1_Example.png}
+\caption{Error magnitude histogram showing the effectiveness of the error detector}
+\label{fig:algo_err_dist}
+\end{figure}
+
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp2_2_Heatmap_Error_ConfSpace.png}
+\caption{Error magnitude histogram of the entire configuration space}
+\label{fig:algo_err_heatmap}
+\end{figure}
 
 We now evaluate the effectiveness of our algorithmic detectors when errors are injected.
-Figure~\ref{fig:algo_err_dist} shows the fraction of entries in the outputs of each routine (y-axis) that have an error of a given magnitude (x-axis) as error magnitudes span from $10^{-14}$ to $10^{-1}$ and errors are injected at three rates for each routine. With a total of 5 input sizes and three fault rates, we have a combination of 15 error rates, from 0.1 error per run to 100 errors per run for each routine.
-In this experiment the liner algebra operations were run on matrixes of size 100, 150, 200, 250, 300, 500, FFT on input array sizes 512K, 1M, 2M, 4M and 8M and RK on ???.
-We show results for both the routines with no error checkers as well as routines where error checkers are used with detection thresholds ???.
-The data shows ???.
+Figures~\ref{fig:algo_err_dist} and \ref{fig:algo_err_heatmap} show the fraction of entries in the outputs of each routine (y-axis) that have an error of a given magnitude (x-axis) as error magnitudes span from 1e-14 to 1e-4.
+Figure~\ref{fig:algo_err_dist} is a focused view on few representative cases (each routine run on a single input size and error injection rate) across different resilience configurations: no error detection as well as detection thresholds of 1e-6, 1e-7 and 1e-8.
+As the error magnitude increases the fraction of output entries with errors of that magnitude drops.
+Importantly, the fraction of erroneous entries is reduced at all magnitudes as a result of error detection and restart.
+Further, this reduction is more significant as the detection threshold shrinks since smaller magnitude errors are detected.
 
-\sui{The RK4 integrator does not have an algorithmic checker that works in a similar way and can precisely detect algorithmic error upon the completion of an integration, and we're relying on the integrator's built-in adaptive step size control capabilities that is able to control errors. This method is still not able to completely prevent algorithmic errors from occurring in the final output, as is shown in the histogram.}
+Figure~\ref{fig:algo_err_heatmap} shows the same information but for all experimental configurations: (i) input sizes of n=100 to 500 for linear algebra, 512K-8M size inputs for FFT and ??? for RK; (ii) error injection rates of 1e-7 to 1e-10.
+The graph is a grid, with results for different routines listed vertically and different resilience configurations (no detection and different detection thresholds) listed horizontally.
+The graph for each routine and resilience configuration presents the curves from Figure~\ref{fig:algo_err_dist} as a heatmap.
+The y-axis shows different routine input sizes and error injection rates, sorted according to the average number of error injections per run, in increasing order from top to bottom.
+The x-axis shows the different error magnitudes and the shade of each point is the fraction of the routine's entries that have a given error magnitude, with darker shades indicating more such entries.
+Thus, each row of Figure~\ref{fig:algo_err_heatmap} represents the same information as each curve in Figure~\ref{fig:algo_err_dist}, with the shades of the squares representing the same information as the height of the line's points.
 
 Figure~\ref{fig:algo_err_heatmap} shows the same information across the entire experimental space.
 The y-axis includes all algorithms, input sizes and error rates.
 The x-axis includes several segments for different degrees of error checking: none, as well as checking with thresholds ???. In each segment the x-axis spans over error magnitudes from ??? to ???.
 The box associated with each combination of the four parameters the figure indicates the fraction of outputs that have an error of this magnitude by the shade of gray it is colored with, as indicated in the legend.
-The data shows ???
+The data shows that the accurate of application results is directly related to the number of errors that impact a given application run, rather than their rate.
+Further, it shows that a reduction of detection threshold is consistently effective at reducing the fraction of errors in each algorithm's output.
+However, the effectiveness of algorithmic checks has a limit, with CD and FFT showing moderate error vulnerability even at threshold 1e-8.
+MM, MV and SYRK are significantly less vulnerable across the full range of error magnitudes.
+\greg{should reference vulnerability numbers more specifically}
 
 %Experiment 3: Measure the fraction fraction of routine runs that are interrupted by the detection of an error.
 %Display this information via the same heatmaps as above.
-
-Finally, Figure~\ref{fig:algor_term_heatmap} shows the fraction of algorithm runs during which the error checks detect errors, across all the algorithms, input sizes, error rates and detection types.
-This information is shown in the same format as Figure~\ref{fig:algo_err_heatmap} and is important for informing us about the performance impact of error detection at these error rates since each error detection results in a rollback of application execution.
-The experiments show ???.
 
 \greg{For each experiment we need to include a discussion of what it means for how these checkers behave within the full-application runs.}
 
@@ -255,77 +346,96 @@ The experiments show ???.
 
 %Although checkers are faster than the routines they protect, the unreliability of those checkers and the ensuing ``false alarms'' might trigger redundant re-calculations that are unnecessary, causing the application to run for much longer. This is specially true with an overly small error detection threshold. On the other hand, an overly loose detection threshold may fail to detect data corruption in output files. The results would be discussed in the results section.
 
-\subsubsection{Memory Fault Detection}
-\label{sec:res_tech:err_det:mem}
+\subsubsection{Runge-Kutta}
+\label{sec:res_tech:eval:rk}
 
-Detecting errors in application data structures requires checkers dedicated for this purpose.
-Depending on the algorithm's properties different error detectors are appropriate.
-In our work we considered the use of access protection hardware and replication of key data.
+The difference between RK routine and others motivates special discussion of its resilience properties.
+Since RK's adaptive step size mechanism is already effective at tolerating many numerical errors we did not design any additional error detector for this routine.
+Instead, we focused on finding the optimal approach to memory error detection and an effective checkpointing strategy and considered different choices for these strategies as different resilience configurations.
+Configurations \texttt{Ckpt} and \texttt{NoChkpt} denote whether checkpointing was used and configurations \texttt{Re} and \texttt{NoRe} denote whether replication was used.
+\greg{What checkpointing period and replication properties?}
 
-Since modern systems use 64-bit addressing the range of values that can be assumed by a given pointer is much larger than the amount of memory that can ever be assigned to an application.
-This means that there is a very high probability that the corruption of a given pointer will cause it to point to an unallocated address.
-Once this address is accessed this violation will be detected by the memory protection hardware and communicated to the application via a Segmentation Fault or Bus Error signal.
-This mechanism is very effective and cheap in practice but suffers from a long delay between an error and its detection.
+\paragraph{Overheads}
+%\label{sec:res_tech:eval:ovhd}
 
-An alternative mechanism is to replicate key application variable and to compare the values of the replicas on each access to the variable.
-While more expensive this approach is effective if the number of key variables is small and the cost of rolling back computation is high.
-The next section discusses rollback and how its costs influence the choice of the memory fault detection strategy for each application.
+\begin{figure}[ht!]
+%\vspace{-20pt}
+\centering
+%\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp1_rk}
+%\vspace{-5pt}
+\caption{Overhead of resilience techniques for RK when errors are not injected}
+\label{fig:rk_routine_detect_ovhd}
+\end{figure}
 
-%Experiment 1: Show the fraction of runs of each routine that is aborted as a result of a memory error
-Figure~\ref{fig:mem_aborts} shows the fraction of runs of each routine that is aborted as a result of a memory error across all algorithm configurations, which indicates the performance impact of such errors on applications.
-The data shows that  ???.
+Figure~\ref{fig:rk_routine_detect_ovhd} shows the overhead of employing each of the four RK resilience techniques when no errors are injected. \greg{This should be the same format as Figure~\ref{fig:routine_all_ovhd}}
+
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=1.00\columnwidth]{figs/4_1_2_Exp2_Expected_Running_Time_Needed.png}
+\caption{Overhead of resilience techniques for RK when errors are injected}
+\label{fig:rk_routine_exp_exec}
+\end{figure}
+
+Figure~\ref{fig:rk_routine_exp_exec} shows the RK's overhead when errors are injected, using the same format as Figure~\ref{fig:routine_exp_exec}.
+Although the \texttt{NoRe\_NoCkpt} configuration has the lowest overhead when only a few errors are injected (low error rate or small execution times), as the number of errors per run increase this configuration quickly becomes extremely slow because it crashes on almost every run.
+In contrast, while the other configurations have a higher overhead for a few errors per run, their execution time scales much better with increasing error rates, making them significantly more practical.
+By varying the checkpointing interval and the degree to which various RK variables are replicated it is possible to achieve a wide range of design points that provide the best performance at various error rates.
+
+\paragraph{Output Accuracy}
+%\label{sec:res_tech:eval:accu}
+
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp2_2_Heatmap_Error_ConfSpace_RK4.png}
+\caption{Error magnitude histogram of the entire configuration space of RK}
+\label{fig:rt_algo_err_heatmap}
+\end{figure}
 
 \begin{figure}[ht!]
 \centering
 \includegraphics[width=1.00\columnwidth]{figs/4_1_2_Exp2_Effectiveness.png}
-\includegraphics[width=1.00\columnwidth]{figs/4_1_2_Exp2_Expected_Running_Time_Needed.png}
-\caption{Overhead and effectiveness of the pointer protection techniques for the ODE solver}
-\label{fig:rk4_eff_ovhd}
+\caption{Fraction of RK runs that achieve low error (smaller than 1e-7).}
+\label{fig:rk_effectiveness}
 \end{figure}
 
-Errors that do not cause the application to access an invalid memory location are detected by replicating key pointers and loop iteration variables.
-The Hattrick application uses a high-accuracy ODE solver that is capable of estimating errors and detecting and reducing errors to a certain level adaptively.
-Therefore we would only focus on the application's vulnerability to pointer and index corruptions.
-Replicating critical variables (pointers and indices) and leveraging Byzantine fault tolerance and correcting those pointers and indices during run-time would raise the applications' resistance to soft errors \sui{and increase the chance this application would output correct results.}
+Figure~\ref{fig:rt_algo_err_heatmap} shows the fraction of errors in RK's outputs for the four resilience configurations, in the same format as Figure~\ref{fig:algo_err_heatmap}.
+It shows that the use of either resilience approaches significantly reduces RK's vulnerability to soft errors and the use of both techniques is even more effective.
+Figure~\ref{fig:rk_effectiveness} shows this from a different perspective: the fraction of RK runs where the root-mean-squared error of the output vector is below 1e-7 (y-axis), relative to the number of error injections per run (x-axis).
+It shows that RK configurations with higher level of resilience are able to achieve this accuracy target more frequently.
+This is primarily because by avoiding frequent rollbacks due to crashes these techniques reduce the total number of errors that are injected into the application run, which also reduces the probability that one such error will be missed by RK's algorithmic error detector.
+As with overhead, the choice of checkpointing interval and replication degree make it possible to choose a wide range accuracy levels and probabilities that these targets will be satisfied.
 
-\sui{Unlike the numerical and FFT routines used in the other two applications, the ODE solver has an stepping function called on the evaluation(s) of each integration step (GSL performs two evaluations per timestep in order to estimate integration error and perform adaptive step size control), which is called much more frequently, on the magnitude of millions of times during the lifetime of the application. Contrarily, the linear algebra routines are only called less than a hundred times during the execution of Lasso with a 10x input, and the FFT routines are called only several hundred times during the execution of DRC with a 30x input. Both are moderate-sized inputs in our experiments.}
-
-\greg{Need to explain why we only do this for Hattrick.} \sui{The checkpointing scheme used here has overhead of having to set signal handlers and perform up-to-date checksum computation of critical data structures. The more often the routines are called, the more frequent the critical data structures need be kept up-to-date, therefore this overhead is larger (non-trivial compated to that for FFT and linear algebra) for a frequently called routine like the integrator. This overhead makes the fault tolerance technique less efficient as it was in linear algebra and FFT routines, bringing it to the same ballpark as the expensive pointer replciation technique. Although it is possible to reduce the frequency of updating the checkpoints, it would also reduce the effectiveness of this method sharply.}
-
-\sui{
-The other reason is, pointer replication performs a better job at maintaining the chance the routine generates correct results (See figure \ref{fig:rk4_eff_ovhd}). As mentioned before, the RK4 integrator does not have an effective checker that takes its output and tells the user whether the output is correct. As the user can't know whether a re-run is necessary and the user should be concerned by the expected time by which s/he can expect a correct output. Therefore, a higher chance of producing correct results would lower the expected cost the user would have to pay to get the correct result despite the overhead. The method of computing this expected running time is described in greater detail in section \ref{sec:eval:perf}'s Markov Model. From \ref{fig:rk4_eff_ovhd} one could see the ratio of perfect runs out of all runs (that are completed or incomplete) and the number of faults per run forms an almost linear relationship. The linear regression model is used to evaluate the position of the guide points needed for the following experiments.
-} 
-
-\sui{Refer to Figure \ref{fig:rk4_eff_ovhd} one could see the number of expected running time of different configurations if one wants to get a correct output from the application in a faulty environments. As the number of faults injected per run increases, the expected running time of the original, non-fault-tolerant application increases at a much faster rate than the other fault-tolerant counterparts. In real life scientific applications that run much longer, it's likely that a fault could hit the application several times before it completes. In such situations, the replication-only resilience technology produces the least expected number of runs needed to get a correct answer.}
-
-To determine a replication strategy we have to determine which variables to replicate and how many replicas to use for replicating them. The following two subsections would be focused on these problems.
-\greg{The report spends a lot of space talking about this but in the end the conclusion is that we just a pick a few options and evaluate them experimentally. How much space should we devote to this discussion.}
-
-Experiment 2: Measure the effectiveness and performance costs of replication. Need to explain why we don't use it for Lasso and DRC.
-
-\subsection{Recovery via Checkpoint-Restart}
-\label{sec:res_tech:cr}
-
-When errors are detected we employ a recovery method based on checkpoint-restart.
-At the start of each routine the state of all inputs is recorded and an error correcting code is used to ensure that the contents of this backup copy are not corrupted.
-Further, we use the \texttt{sigsetjmp} routine to record the application's execution state at the routine's start.
-If an error is detected during the routine \texttt{siglongjmp} is used to return the application's execution back to the start of the routine (this function unrolls function calls as needed and reloads the process counter and register state).
-The recovery procedure then resets the routine's inputs from their backed-up copies, overwriting any changes or corruptions that may have occurred during the routine's execution, and restarts its execution.
-%A combination of \texttt{siglongjmp} and \texttt{sigsetjmp} are used to recover from segmentation faults. The overhead of this API call is having to copy the processor state into memory, therefore installing them between computation-intensive method calls adds to negligible performance degradation.
-
-The backup copy of routine inputs is protected via a block-checksum-based data correction mechanism.
-By treating the input array as a matrix and comparing row sums and column sums of the submatrices of that matrix, we are able to detect the existence of errors and fix a fraction of the errors.
-The protection mechanism has the following parameters:
-\begin{itemize}
-\item{\texttt{N}, the size of the error correcting sum block.}
-\item{\texttt{ECC\_ECC}, whether or not the error correcting code itself should be corrected.}
-\end{itemize}
-This mechanism is able to correct up to $1/{n^2}$ of the elements in the input array.
-\greg{Which code is being used here? You just say that it is based on block-checksums}.
-
-Experiment 1: Measure the cost of setjmp and longjmp in our routines as the input sizes vary
-Experiment 2: Measure the cost of input backup and input recovery in our routines as the input sizes vary
-
+%
+%???\sui{the effectiveness of the error handlers and the error checkers. Note that the graph shows fault injection experiments at various rates (defined by errors per run).}
+%
+%\sui{There are roughly three types of fault rates: 1) very high fault rates (more than tens of errors per run), under which the application would barely complete running; 2) medium fault rates (1 to 10 errors per run), where the rate that the application completes running is very sensitive to the fault rate (because for a non-resilient application, just one error is enough to cause a segmentation fault and abort the application) and 3) low error rates, smaller than 1 errors per run. The effectiveness of the fault detector is most visible at fault rates from under 1 faults per run to several errors per run, which is visible from the histograms that the vertical bars indicating a run with algorithmic detectors is generally brighter, therefore less erroneous; when the error rates goes beyond 10 errors per run, the effectiveness of the signal handlers become more noticeable, rising the chance the application would complete.}
+%
+%\sui{At higher error rates, the signal handlers enable more runs to complete as well as allowing erroneous results to go into the output. More erroneous results are allowed into the final output by the signal handler than the erroneous intermediate corrected by the algorithmic checker. That is why from the histograms, some vertical bars indicating fault-tolerant runs at a very high error rate would look darker.}
+%
+%
+%
+%
+%
+%
+%Errors that do not cause the application to access an invalid memory location are detected by replicating key pointers and loop iteration variables.
+%The Hattrick application uses a high-accuracy ODE solver that is capable of estimating errors and detecting and reducing errors to a certain level adaptively.
+%Therefore we would only focus on the application's vulnerability to pointer and index corruptions.
+%Replicating critical variables (pointers and indices) and leveraging Byzantine fault tolerance and correcting those pointers and indices during run-time would raise the applications' resistance to soft errors \sui{and increase the chance this application would output correct results.}
+%
+%\sui{Unlike the numerical and FFT routines used in the other two applications, the ODE solver has an stepping function called on the evaluation(s) of each integration step (GSL performs two evaluations per timestep in order to estimate integration error and perform adaptive step size control), which is called much more frequently, on the magnitude of millions of times during the lifetime of the application. Contrarily, the linear algebra routines are only called less than a hundred times during the execution of Lasso with a 10x input, and the FFT routines are called only several hundred times during the execution of DRC with a 30x input. Both are moderate-sized inputs in our experiments.}
+%
+%\greg{Need to explain why we only do this for Hattrick.} \sui{The checkpointing scheme used here has overhead of having to set signal handlers and perform up-to-date checksum computation of critical data structures. The more often the routines are called, the more frequent the critical data structures need be kept up-to-date, therefore this overhead is larger (non-trivial compated to that for FFT and linear algebra) for a frequently called routine like the integrator. This overhead makes the fault tolerance technique less efficient as it was in linear algebra and FFT routines, bringing it to the same ballpark as the expensive pointer replciation technique. Although it is possible to reduce the frequency of updating the checkpoints, it would also reduce the effectiveness of this method sharply.}
+%
+%\sui{
+%The other reason is, pointer replication performs a better job at maintaining the chance the routine generates correct results (See figure \ref{fig:rk4_eff_ovhd}). As mentioned before, the RK4 integrator does not have an effective checker that takes its output and tells the user whether the output is correct. As the user can't know whether a re-run is necessary and the user should be concerned by the expected time by which s/he can expect a correct output. Therefore, a higher chance of producing correct results would lower the expected cost the user would have to pay to get the correct result despite the overhead. The method of computing this expected running time is described in greater detail in section \ref{sec:eval:perf}'s Markov Model. From \ref{fig:rk4_eff_ovhd} one could see the ratio of perfect runs out of all runs (that are completed or incomplete) and the number of faults per run forms an almost linear relationship. The linear regression model is used to evaluate the position of the guide points needed for the following experiments.
+%}
+%
+%\sui{Refer to Figure \ref{fig:rk4_eff_ovhd} one could see the number of expected running time of different configurations if one wants to get a correct output from the application in a faulty environments. As the number of faults injected per run increases, the expected running time of the original, non-fault-tolerant application increases at a much faster rate than the other fault-tolerant counterparts. In real life scientific applications that run much longer, it's likely that a fault could hit the application several times before it completes. In such situations, the replication-only resilience technology produces the least expected number of runs needed to get a correct answer.}
+%
+%To determine a replication strategy we have to determine which variables to replicate and how many replicas to use for replicating them. The following two subsections would be focused on these problems.
+%\greg{The report spends a lot of space talking about this but in the end the conclusion is that we just a pick a few options and evaluate them experimentally. How much space should we devote to this discussion.}
+%
+%Experiment 2: Measure the effectiveness and performance costs of replication. Need to explain why we don't use it for Lasso and DRC.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
 \section{Evaluation of Resilience Methodology}
 \label{sec:eval}
 
