@@ -43,7 +43,7 @@ To provide comprehensive protection for the computations of HPC applications it 
 Algorithmic resilience can be very complex to deploy in applications because a comprehensive resilience strategy must address all the types of errors that an application may experience.
 This includes corruptions to numerical data as well as control information and data structures.
 Full protection requires the combination of multiple techniques including algorithmic error detection, crash detection, replication of key control information as well as support for restart when errors are detected.
-Further, it is necessary to configure the properties of the resilience mechanisms to make sure that they are cost-effectively meeting the user's accuracy and confidence targets.
+Further, it is necessary to configure the properties of the resilience mechanisms to make sure that they are cost-effectively meeting the user's accuracy and confidence targets. 
 This paper shows how all these issues can be resolved comprehensively in the context of three numeric applications.
 
 \end{abstract}
@@ -79,7 +79,7 @@ We show how these three applications can be comprehensively protected from soft 
 We demonstrate via fault injection experiments that although none of these techniques can individually protect applications from soft faults, their combination is highly effective.
 Further, we demonstrate how these techniques can be configured to offer the right level of protection at any given fault rate or input type.
 More specifically, these configurations can be used to produce a wide range of overheads and result accuracy levels and to tune the probabilistic confidence level that the given overhead or accuracy target will be met.
-\greg{Summarize real results}
+\greg{Summarize real results} \sui{A tighter algorithmic checker bounds can be enabled at low error rates to completely eliminate erroneous results at a lower overhead, while a more lenient algorithmic checker would allow the user to produce more acceptable results in face of a higher error rate (such as 1e-09).}
 
 The paper is organized as follows.
 Section~\ref{sec:soft_faults} discusses the problem of soft errors and presents the fault injection model we use to simulate them in our experiments.
@@ -129,8 +129,8 @@ According to our experiments, the running time of this solver is not dependent o
 The DRC program generates filters for HiFi audio systems to compensate for the reflection of sounds in a room, using impulse response measurements of the audio equipment and considering the positions of the listeners.
 The inputs are stored in Pulse Code Modulation (PCM) format, which is an array of 32-bit floating point numbers representing the samples at each sampling time step and the computations are performed using 32-bit precision.
 Although the algorithm is divided into many phases the most computationally intensive step consists of the GSL's implementation of the Fast Fourier Transform and an DRC-internal implementation of Finite Impulse Response filter generation.
-This program accepts user-controllable inputs to decide the width and number of iterations of FFT transforms it performs in these various phases.
-Different configurations would load the CPU for different lengths of time, virtually equivalent to inputs of different sizes.
+This program accepts user-controllable configurations to decide the width and number of iterations of FFT transforms it uses to perform various passes on the input file, such as windowing, deconvolution, pre- and post-filtering.
+Different configurations would load the CPU for different lengths of time, resulting in the program generating inputs of different sizes \sui{to the FFT routines.}.
 \greg{What inputs?}
 
 \subsection{Hattrick}
@@ -138,7 +138,7 @@ Different configurations would load the CPU for different lengths of time, virtu
 The Hattrick application simulates the motion of bodies under the effects of gravity using 64-bit precision.
 It is designed to help discover extra-solar planets by inferring their existence from Transit Timing Variations, where the difference between the times when a planet passes in front of its host star is used to infer the existence and properties of other planets in the system.
 This program spends most of its execution time in the GSL solver for Ordinary Differential Equations to solver the system's equations of motion.
-\greg{What inputs?}
+\greg{What inputs?} \sui{Input files are four different planetary systems. The first, third and fourth input files simulate one star and one planet and the second simulates one star and two planets. The third and fourth inputs are the same planetary system with different lengths of simulation time.}
 
 \section{Resilience Techniques}
 \label{sec:res_tech}
@@ -158,7 +158,7 @@ Finally, Section~\ref{sec:res_tech:eval} presents an experimental evaluation of 
 
 Each algorithm used by the above application was enhanced with an algorithm-specific checker that validated its results by exploiting some algorithmic identity.
 Each checker computes some aggregate property of the algorithm's results using two different algorithm to produce vectors $v$ and $v'$ and their relative difference by more than some threshold $\tau$, the checker declares that an error has occurred.
-The relative difference is computed as $\frac{\left|| v-v' \right||}{max(\left||v\right||, \left||v'\right||)}$ \greg{is this the right formula???}.
+The relative difference is computed as $\frac{\left|| v-v' \right||}{max(\left||v\right||, \left||v'\right||)}$ \greg{is this the right formula???} \sui{yes}.
 Each error detection causes the routine's execution to be restarted using the rollback mechanism described in Section~\ref{sec:res_tech:cr}.
 
 \paragraph{Matrix-matrix multiplication (MMM)}
@@ -251,6 +251,7 @@ Checkpoint data is protected using two different mechanisms.
 Pointers and scalars are replicated such that the checkpoint contains two copies of each.
 Arrays of floating point numbers are protected via a block-checksum-based error correcting code..
 By treating the input array as a matrix and comparing row sums and column sums of the submatrices of that matrix, we are able to detect the existence of errors and fix a fraction of the errors.
+\sui{This algorithm takes in an array of numbers, divide it into blocks of $N \cdot N$ numbers, computes and stores the row sums and column sums that are used for recovery. It is capable of correcting one corrupt element that does not share the same row or column with another element.}
 The protection mechanism has the following parameters:
 \begin{itemize}
 \item{\texttt{N}, the size of the error correcting sum block.}
@@ -262,10 +263,10 @@ This mechanism is able to correct up to $1/{n^2}$ of the elements in the input a
 The structure of each routine determines how checkpointing is deployed.
 All routines except RK are monolithic code blocks that take a relatively large amount of data as input, operate on it and then return.
 In contrast, RK takes in very little input and operates as a long sequence of steps, each of which involves a call to a user-provided derivative routine.
-As such, we checkpoint the state of non-RK routines immediately after the call to the routine and include in this checkpoint the routine's arguments and contents of the floating point input buffers \greg{is this correct?}.
+As such, we checkpoint the state of non-RK routines immediately after the call to the routine and include in this checkpoint the routine's arguments and contents of the floating point input buffers \greg{is this correct?} \sui{Yes}.
 The one exception is the FIR routine, which takes no input and thus requires only the processor's state to be checkpointed..
 Because RK's checkpoints are very small and it is more sensitive to errors, it is checkpointed periodically during its execution with a fixed number of steps between checkpoints.
-As our experiments \greg{where?} show, the choice of the RK checkpoint period significantly affects its efficiency with longer periods suffering from more overhead due to rollbacks and short period spending more time checkpointing.
+As our experiments \greg{where?} \sui{This should be ready tomorrow} show, the choice of the RK checkpoint period significantly affects its efficiency with longer periods suffering from more overhead due to rollbacks and short period spending more time checkpointing.
 
 \subsection{Evaluation of Subroutine Resilience}
 \label{sec:res_tech:eval}
@@ -290,7 +291,7 @@ This section evaluates the routines MMM, MVM, SYRK, CD, FFT and FIR.
 
 %Experiment 1: Measure performance degradation of using error detectors as input sizes increase. In case of RK if we can run a version that doesn't do the multiple step sizes, do so but if this is difficult then don't worry about it.
 We evaluate the costs of the above algorithmic error checkers by measuring their costs and effectiveness when running at different error rates on different types of inputs.
-Figure \ref{fig:routine_detect_ovhd} measures the overheads of employing the algorithmic error detectors when no errors are injected, reporting the average of \greg{???} runs.
+Figure \ref{fig:routine_detect_ovhd} measures the overheads of employing the algorithmic error detectors when no errors are injected, reporting the average of \greg{???} \sui{100} runs.
 The linear algebra routines were executed on $nxn$ square matrices where $n$ varies from 100 to 1000.
 FFT ran on inputs vectors with 128K to 4M entries and RK ran on an integral with intervals $[0, t_1]$ where $t_1 \in \{10, 15, 20, 25, 30, 50, 75, 100\}$. \greg{What function was being computed by RK?} \sui{The ODE system consists of a second-order nonlinear Van der Pol oscillator equation $x''(t)+\mu x'(t)(x(t)^2-1)+x(t)=0$}
 As our experiments show, the cost of algorithmic error detection is low and drops with increasing input sizes.
@@ -300,7 +301,7 @@ As our experiments show, the cost of algorithmic error detection is low and drop
 \centering
 \includegraphics[width=1.00\columnwidth]{figs/4_1_1_Overall_Breakdown.png}
 %\vspace{-5pt}
-\caption{Overhead of resilience techniques when no errors are injected}
+\caption{Overhead of resilience techniques when no errors are injected \sui{(Bars) and when errors are injected (points). (The SYRK overhead is from the old algorithm (the O($n^2 logn$) version; will update today! }}
 \label{fig:routine_all_ovhd}
 \end{figure}
 
@@ -311,12 +312,14 @@ Howveer, because MV runs quickly and because RK takes many checkpoints (\greg{wh
 
 Finally, Figure~\ref{fig:routine_exp_exec} documents the overhead of resilience when errors are injected into application execution, accounting for the slowdowns due to the resilience mechanisms as well as rollbacks due to error detections.
 Each routine's graph shows $\frac{\texttt{Time with Errors}}{\texttt{Time No Errors}}$, where the \texttt{Time with Errors} is average increase execution time of a resilient or non-resilient version of the routine when running on the same range of inputs as above, and \texttt{Time No Errors} is the execution time of the non-resilient version on the same inputs when no errors are injected.
-The graph for each routine reports this metric for all of the above input sizes, error injection rates between 1e-8 and 1e-11 \greg{confirm!} and all resilience configurations (no resilience and resilience with detection thresholds between 1e-6 and 1e-8), as the average time of \greg{???} runs.
-The data points within each figure are organized horizontally according to the average number of errors injected into runs with the given input size and at the given injection rate. \greg{Do the error counts include errors after rollbacks?}
+The graph for each routine reports this metric for all of the above input sizes, error injection rates between 1e-8 and \sui{(1e-8 is the highest error rate that we can have for most runs to complete) and 1e-10 (is the lowest error rate we would observe errors from mosts of the runs) } \greg{confirm!} and all resilience configurations (no resilience and resilience with detection thresholds between 1e-6 and 1e-8), as the average time of \greg{???} runs \sui{100 runs per configuration}.
+The data points within each figure are organized horizontally according to the average number of errors injected into runs with the given input size and at the given injection rate. \greg{Do the error counts include errors after rollbacks?} \sui{No, because the error count is the number of errors for Non-FT runs with errors. Since there is no FT and no checkpointing in these configurations, the number doesn't include errors after rollbacks. }
 This average error count is shown on the x-axis.
 All runs with the same resilience configuration are joined together into a line to highlight its properties.
 
-The data shows \greg{???}
+The data shows \greg{???} \sui{Soft errors may cause the routines to run longer due to rollback in attempt to correct the errors. The higher the error rate, the more likely rollback is to occur. For example, the Cholesky Decomposition routine with input size 100, when exposed to an error rate of 1e-06, would run on average twice as long as when no fault is injected. That means in this case, every one of the runs tend to have 100\% overhead. In some cases the algorithm would give up retrying after the fifth time because it is unable to recover from the corrupt inputs. For example, for FFT exposed at a fault rate of 1e-08, the average overhead, as computed by dividing the time spent in the fault-tolerance codes by the baseline running time, decreases, because more runs tend to early-terminate when too many elements in the input have been corrupted.}
+
+\sui{I will add a graph showing how many of the inputs have been corrupted and failed to recover. This is an important issue for FFT.}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \paragraph{Output Accuracy}
@@ -325,7 +328,7 @@ The data shows \greg{???}
 \begin{figure}[ht!]
 \centering
 \includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp2_1_Example.png}
-\caption{Error magnitude histogram showing the effectiveness of the error detector \greg{Why is FFT not improving with tighter threshold? Why is MM differently vulnerable than SYRK?} \sui{Reason for FFT: 1. Errors smaller than 10e-5 cannot be captured by the checker, even at low error rates, so this should be the fundamental limitation of the checker. 2. We actually are seeing reduction in large errors, but those large errors account for such a small fraction that they are not obviously visible on the graph.}}
+\caption{Error magnitude histogram showing the effectiveness of the error detector \greg{Why is FFT not improving with tighter threshold? Why is MM differently vulnerable than SYRK?} \sui{Reason for FFT: 1. Errors smaller than a certain value cannot be captured by the checker, even at low error rates, so this should be the fundamental limitation of the checker. 2. We actually are seeing reduction in large errors, but those large errors account for such a small fraction that they are not obviously visible on the graph. For the difference between MM and SYRK: MM is more vulnerable therefore the difference between ``corrected'' and ``not corrected'' would look more noticable.}}
 \label{fig:algo_err_dist}
 \end{figure}
 
@@ -351,6 +354,7 @@ The x-axis shows the different error magnitudes and the shade of each point is t
 Thus, each row of Figure~\ref{fig:algo_err_heatmap} represents the same information as each curve in Figure~\ref{fig:algo_err_dist}, with the shades of the squares representing the same information as the height of the line's points.
 
 \marc{The y-axis should show just the number of errors injected. We can say that we have used several fault injection rates and sizes to get those numbers. Right now the picture is confusing.}
+\sui{How does this look?}
 
 Figure~\ref{fig:algo_err_heatmap} shows the same information across the entire experimental space.
 The y-axis includes all algorithms, input sizes and error rates.
@@ -358,8 +362,10 @@ The x-axis includes several segments for different degrees of error checking: no
 The box associated with each combination of the four parameters the figure indicates the fraction of outputs that have an error of this magnitude by the shade of gray it is colored with, as indicated in the legend.
 The data shows that the accurate of application results is directly related to the number of errors that impact a given application run, rather than their rate.
 Further, it shows that a reduction of detection threshold is consistently effective at reducing the fraction of errors in each algorithm's output.
-However, the effectiveness of algorithmic checks has a limit, with CD and FFT showing moderate error vulnerability even at threshold 1e-8.
-MM, MV and SYRK are significantly less vulnerable across the full range of error magnitudes.
+%However, the effectiveness of algorithmic checks has a limit, with CD and FFT showing moderate error vulnerability even at threshold 1e-8.
+\sui{(Rephrase) However, the algorithmic checkers cannot cover 100\% of the errors for CD, FFT and FIR, mainly fixing errors of large magnitudes which turned out to be effective in real applications (refer to the imperfect run rate plot for DRC.)}
+%MM, MV and SYRK are significantly less vulnerable across the full range of error magnitudes.
+\sui{(Rephrase) The errors shown in MM, MV and SYRK are much more noticably fixed.}
 \greg{should reference vulnerability numbers more specifically}
 
 %Experiment 3: Measure the fraction fraction of routine runs that are interrupted by the detection of an error.
@@ -384,7 +390,7 @@ The difference between RK routine and others motivates special discussion of its
 Since RK's adaptive step size mechanism is already effective at tolerating many numerical errors we used it as the error detector for this routine without adjusting its tolerance parameters.
 The configurable portions of the RK resilience method are thus the choice of checkpointing and/or replication strategy.
 Configurations \texttt{Ckpt} and \texttt{NoChkpt} denote whether checkpointing was used and configurations \texttt{Re} and \texttt{NoRe} denote whether replication was used.
-\greg{What checkpointing period and replication properties?}
+\greg{What checkpointing period and replication properties?} \sui{Checkpointing: every 1/100/1000/10000/100000 calls to RK4 stepping function. Replication: No replication, using 1 pair of replicas and using maximum number of replicas.}
 
 \paragraph{Overheads}
 %\label{sec:res_tech:eval:ovhd}
@@ -398,7 +404,7 @@ Configurations \texttt{Ckpt} and \texttt{NoChkpt} denote whether checkpointing w
 \label{fig:rk_routine_detect_ovhd}
 \end{figure}
 
-Figure~\ref{fig:rk_routine_detect_ovhd} shows the overhead of employing each of the four RK resilience techniques when no errors are injected. \greg{This should be the same format as Figure~\ref{fig:routine_all_ovhd}}
+Figure~\ref{fig:rk_routine_detect_ovhd} shows the overhead of employing each of the four RK resilience techniques when no errors are injected. \greg{This should be the same format as Figure~\ref{fig:routine_all_ovhd}} 
 
 \begin{figure}[ht!]
 \centering
@@ -474,13 +480,13 @@ As with overhead, the choice of checkpointing interval and replication degree ma
 Having evaluated the resilience properties of the individual application routines and resilience techniques we now consider our three target applications ADDR, Hattrick and DRC.
 Section~\ref{sec:eval:perf} reports on the impact of errors and resilience techniques on application performance. Section~\ref{sec:eval:acc} describes the distribution of errors in the results of these applications.
 These results are based on a fault injection campaign that includes a range of fault injection rates, input sizes and configurations of resilience mechanisms, with 100 application runs for each combination of parameters.
-This corresponds to a total of \greg{???} error injection experiments.
+This corresponds to a total of \greg{???} \sui{66100 for lasso, 43200 for DRC, 102000 for Hattrick, as counted by my scripts.} error injection experiments.
 
 A given application run may terminate successfully or crash due to an unrecoverable error.
 Unrecoverable errors occur when there is a segmentation fault in code outside our protected routines or if 5 rollbacks of a routine have been observed in a given run since such repeated rollbacks almost always indicate that the corruption in application state cannot be repaired.
 Since we assume that the user needs application results regardless of the error rate, if the application crashes it is restarted from the beginning as many times as needed for it to complete.
 
-To evaluate the behavior of these applications in a broad range of error environments we considered error injection rates that range from 1e-16 \greg{???} errors per cycle of the LLVM virtual machine to 1e-6 errors per cycle.
+To evaluate the behavior of these applications in a broad range of error environments we considered error injection rates that range from 1e-16 \greg{???}\sui{Yes. At least this is the argument I sent to the injector.} errors per cycle of the LLVM virtual machine to 1e-6 errors per cycle.
 For reference, assuming a typical FIT of 100-100,000 for individual processing cores (FIT = failure in one billion hours of operation and this range has been experimentally observed for commodity electronics~\cite{mem_errors:2010, DRAMerr:2009}), an HPC system with one million cores will experience .1-100 errors per hour, which is equivalent to 3e-11 - 3e-14 errors per processor cycle on a 1Ghz processor.
 The range of error injection rates used used in our experiments were chosen such that (i) on average one or more errors were injected in the executions of our target applications and (ii) at least some application runs completed without crashing.
 Results for error rates that induce fewer than one error per run were extrapolated from our experiments with higher error rates.
@@ -492,7 +498,7 @@ This was done by considering only the runs where exactly one error was injected 
 \label{sec:eval:perf}
 
 Our fault injection experiments ran each application configuration to completion, recording whether it completed and if so, the magnitude of the error.
-We calculate the execution time of each configuration, accounting for application rollbacks via the formula $\frac{p_c*t_c}{1-p_f}$, where $p_c$ is the probability of a run completing, $t_c$ is the average completion time of such runs and $p_f$ is the probability of a run failing to complete\greg{is this right}.
+We calculate the execution time of each configuration, accounting for application rollbacks via the formula $\frac{p_c*t_c}{1-p_f}$, where $p_c$ is the probability of a run completing, $t_c$ is the average completion time of such runs and $p_f$ is the probability of a run failing to complete\greg{is this right}. \sui{I don't see anything wrong}
 Figures~\ref{fig:Lasso_EstdCost}, \ref{fig:DRC_EstdCost} and \ref{fig:Hattrick_EstdCost} show the expected execution time, relative to the execution time of the non-fault tolerant version of the application when no errors are injected.
 The graphs from left to right correspond to different application input sizes.
 Within each graph the x-axis corresponds to error injection rates, while the y-axis shows the relative execution time, both logarithmic.
@@ -504,11 +510,11 @@ This is the range of relative execution times at the given error rate and applic
 The confidence interval is computed by modeling the number of times application results will meet the error bound using a Binomial distribution.
 Given a binary random variable that is equal to 1 (i.e. error bound achieved) with probability $p$ and 0 (i.e. bound missed) with probability $1-p$ the Binomial distribution is the number of trials where it is 1.
 
-\greg{Sui, please confirm that the following is true}
+\greg{Sui, please confirm that the following is true}}
 The data shows that the non-fault tolerant ADDR and Hattrick shows little slowdown as a result of injected faults.
 This is because these applications spend most of its time in linear algebra and differential equation routines which are numerically-intensive but perform relatively few memory manipulations or pointer accesses.
 As such, until it reaches error rates of 1e-9 and above ADDR does not see a significant number of aborts due to memory errors.
-The result is that the addition of resilience techniques does little to improve ADDR's performance.
+The result is that the addition of resilience techniques does little to improve ADDR's performance. \sui{The addition of resilience techniques greatly improve its accuracy}}
 
 In contrast, since DRC performs many more integer operations and memory copies, it is more vulnerable to errors that corrupt the values of pointers or cause loads and stores to target invalid memory locations.
 Such errors cause memory segmentation faults, which force DRC to restart its execution and thus incur a very high overhead.
@@ -527,7 +533,7 @@ In contrast, the localized rollback and correction provided by our checkpointing
 \centering
 \includegraphics[width=2.00\columnwidth]{figs/DRC_EstdCost.png}
 \vspace{-10pt}
-\caption{Execution time of DRC relative to non-fault tolerant fault-free execution time \greg{Need confidence intervals}}
+\caption{Execution time of DRC relative to non-fault tolerant fault-free execution time \greg{Need confidence intervals} \sui{Added.}}
 \vspace{-10pt}
 \label{fig:DRC_EstdCost}
 \end{figure*}
@@ -536,7 +542,7 @@ In contrast, the localized rollback and correction provided by our checkpointing
 \centering
 \includegraphics[width=2.00\columnwidth]{figs/Hattrick_EstdCost.png}
 \vspace{-10pt}
-\caption{Execution time of Hattrick relative to non-fault tolerant fault-free execution time \greg{Need confidence intervals}}
+\caption{Execution time of Hattrick relative to non-fault tolerant fault-free execution time \greg{Need confidence intervals} \sui{Added.}}
 \vspace{-10pt}
 \label{fig:Hattrick_EstdCost}
 \end{figure*}
@@ -570,33 +576,36 @@ The x-axis in each graph shows the fault injection rate (logarithmic) while the 
 Each graph shows data for the non-fault tolerant version of the application (all points connected by the line) as well as all the the fault tolerant versions (optimal configurations connected by a line).
 The 95\% confidence interval is plotted and denoted range of probabilities that the error bound will be achieved at the given error rate and application configuration in 95\% of all trials.
 
-\greg{Sui, please confirm that the following is true}
+\greg{Sui, please confirm that the following is true} \sui{Yes. ADDR is sensitive to errors, and even a small number of error would cause noticable errors in the results. Comparing the leftmost data points on the ``probability of not satisfying'' graphs of the 3 applications.}
 The data shows that the probability that the non-fault tolerant version of ADDR satisfies the user-provided error bound is low, for bounds randing from 1e-10 to 1e-4.
-In contrast, the fault tolerant version of the application is significantly more successful, especially for error rates of 1e-12 and lower (\greg{need log plot to show the low accuracy rate more precisely}).
-\greg{Can mention the fact that the fault tolerant versions are most successful for loose error bounds and small inputs but the success rate is poor for the 10x input. Why?}
+In contrast, the fault tolerant version of the application is significantly more successful, especially for error rates of 1e-12 and lower (\greg{need log plot to show the low accuracy rate more precisely} \sui{Changed to log plot.}).
+\greg{Can mention the fact that the fault tolerant versions are most successful for loose error bounds and small inputs but the success rate is poor for the 10x input. Why?} \sui{I know why. After inspecting Lasso's code, it turns out Lasso contains TWO branches of code: one on ``fat'' matrices and the other on ``skinny'' matrices. Only 10x input triggers the ``fat matrix'' code and inputs 20 through 100 would trigger the ``skinny'' code. The two versions of code are not the same therefore they would be vulnerable to soft errors to different degrees.}
 
-\greg{I won't comment on the DRC errors because Sui is currently trying to improve them. Right now we're not being very successful. However, since DRC is a single precision code, we should really be considering much larger error bounds, like 1e-6 or 1e-4}.
+\greg{I won't comment on the DRC errors because Sui is currently trying to improve them. Right now we're not being very successful. However, since DRC is a single precision code, we should really be considering much larger error bounds, like 1e-6 or 1e-4}. \sui{Expanding the ranges makes sense. Plus, I think the range for Hattrick can be as tight as 1e-20. I have used 1e-17, 1e-14 and 1e-10 in the updated visualization.}
 
-\greg{Its hard to comment on Hattrick until we have a version of the plots with a logscale y-axis since it'll tell us exactly how successful the fault tolerant versions of the code are. Also, what are the relative execution times of these input files? This will give us an idea of how vulnerable they are.}
+\greg{Its hard to comment on Hattrick until we have a version of the plots with a logscale y-axis since it'll tell us exactly how successful the fault tolerant versions of the code are. Also, what are the relative execution times of these input files? This will give us an idea of how vulnerable they are.} \sui{Input 1=55s; Input 2=155s; Input 3=82s; Input 4=120s }
 
 \begin{figure*}[ht!]
 \centering
 \includegraphics[height=5in]{figs/Lasso_ImperfectRate.png}
-\caption{Probability of not satisfying the user-provided error bound for ADDR \greg{why do the probabilities of the no-FT version not change as the error threshold changes? Also, it may be good to show fewer columns but add graphs where the y-scale is a log-plot}}}
+\includegraphics[height=5in]{figs/Lasso_ImperfectRate_log.png}
+\caption{Probability of not satisfying the user-provided error bound for ADDR \greg{why do the probabilities of the no-FT version not change as the error threshold changes? Also, it may be good to show fewer columns but add graphs where the y-scale is a log-plot}} \sui{Added a log plot.}}
 \label{fig:Lasso_ImperfectRate}
 \end{figure*}
 
 \begin{figure*}[ht!]
 \centering
 \includegraphics[height=3in]{figs/DRC_ImperfectRate.png}
-\caption{Probability of not satisfying the user-provided error bound for DRC \greg{why do the probabilities of the no-FT version not change as the error threshold changes? Also, it may be good to show fewer columns but add graphs where the y-scale is a log-plot}}
+\includegraphics[height=3in]{figs/DRC_ImperfectRate_log.png}
+\caption{Probability of not satisfying the user-provided error bound for DRC \greg{why do the probabilities of the no-FT version not change as the error threshold changes? Also, it may be good to show fewer columns but add graphs where the y-scale is a log-plot} \sui{Added a log plot (on the right).}}
 \label{fig:DRC_ImperfectRate}
 \end{figure*}
 
 \begin{figure*}[ht!]
 \centering
 \includegraphics[height=3in]{figs/Hattrick_ImperfectRate.png}
-\caption{Probability of not satisfying the user-provided error bound for Hattrick \greg{why do the probabilities of the no-FT version not change as the error threshold changes? Also, it may be good to show fewer columns but add graphs where the y-scale is a log-plot}}
+\includegraphics[height=3in]{figs/Hattrick_ImperfectRate_log.png}
+\caption{Probability of not satisfying the user-provided error bound for Hattrick \greg{why do the probabilities of the no-FT version not change as the error threshold changes? Also, it may be good to show fewer columns but add graphs where the y-scale is a log-plot} \sui{The change is small therefore not visible on a linear scale. Switching to log plot revealed those tiny differences.}}
 \label{fig:Hattrick_ImperfectRate}
 \end{figure*}
 
