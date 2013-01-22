@@ -373,7 +373,7 @@ Further, it shows that a reduction of detection threshold is consistently effect
 
 \greg{For each experiment we need to include a discussion of what it means for how these checkers behave within the full-application runs.}
 
-\sui{The checkers have performed well in reducing erroneous results from the application outputs. Checkers for linear algebra are useful in removing errors from Lasso, as one could see from the results.
+\sui{The checkers have performed well in reducing erroneous results from the application outputs. Checkers for linear algebra are useful in removing errors from Lasso, as one could see from the results.}
 
 %Those checkers can detect errors greater than a certain numeric threshold in those computations (determined by the user-defined error checker threshold). Once an error beyond the threshold has occurred, a re-calculation would be initiated.
 %\greg{You need to be more specific. Each routine produces a result, your checker produces a result. How are these results compared and how is the threshold used to determine if there is an error or not.}
@@ -510,11 +510,11 @@ This is the range of relative execution times at the given error rate and applic
 The confidence interval is computed by modeling the number of times application results will meet the error bound using a Binomial distribution.
 Given a binary random variable that is equal to 1 (i.e. error bound achieved) with probability $p$ and 0 (i.e. bound missed) with probability $1-p$ the Binomial distribution is the number of trials where it is 1.
 
-\greg{Sui, please confirm that the following is true}}
+\greg{Sui, please confirm that the following is true}
 The data shows that the non-fault tolerant ADDR and Hattrick shows little slowdown as a result of injected faults.
 This is because these applications spend most of its time in linear algebra and differential equation routines which are numerically-intensive but perform relatively few memory manipulations or pointer accesses.
 As such, until it reaches error rates of 1e-9 and above ADDR does not see a significant number of aborts due to memory errors.
-The result is that the addition of resilience techniques does little to improve ADDR's performance. \sui{The addition of resilience techniques greatly improve its accuracy}}
+The result is that the addition of resilience techniques does little to improve ADDR's performance. \sui{The addition of resilience techniques greatly improve its accuracy}
 
 In contrast, since DRC performs many more integer operations and memory copies, it is more vulnerable to errors that corrupt the values of pointers or cause loads and stores to target invalid memory locations.
 Such errors cause memory segmentation faults, which force DRC to restart its execution and thus incur a very high overhead.
@@ -589,7 +589,7 @@ In contrast, the fault tolerant version of the application is significantly more
 \centering
 \includegraphics[height=5in]{figs/Lasso_ImperfectRate.png}
 \includegraphics[height=5in]{figs/Lasso_ImperfectRate_log.png}
-\caption{Probability of not satisfying the user-provided error bound for ADDR \greg{why do the probabilities of the no-FT version not change as the error threshold changes? Also, it may be good to show fewer columns but add graphs where the y-scale is a log-plot}} \sui{Added a log plot.}}
+\caption{Probability of not satisfying the user-provided error bound for ADDR \greg{why do the probabilities of the no-FT version not change as the error threshold changes? Also, it may be good to show fewer columns but add graphs where the y-scale is a log-plot} \sui{Added a log plot.}}
 \label{fig:Lasso_ImperfectRate}
 \end{figure*}
 
