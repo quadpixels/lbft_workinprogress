@@ -295,15 +295,12 @@ As our experiments show, the cost of algorithmic error detection is low and drop
 \centering
 \includegraphics[width=1.00\columnwidth]{figs/4_1_1_Overall_Breakdown.png}
 %\vspace{-5pt}
-\caption{Overhead of resilience techniques. Results when no errors are injected are shown in the bars while overheads when errors are injected are expressed by using points.}
+\caption{Overhead of resilience techniques. Results when no errors are injected are shown.}
 \label{fig:routine_all_ovhd}
 \end{figure}
 
 Figure~\ref{fig:routine_all_ovhd} shows in the bars the overhead of all resilience techniques with no fault injection.
 The data shows that checkpointing routine's input (input backup bar) consumes more time than algorithm specific data corruption mechanisms (checker bar). In all cases, the overheads decrease as the input set size increses.
-The same figure shows in the points the computational overhead when errors are injected. 
-The data points within each figure are organized horizontally according to the average number of errors injected into runs with the given input size and at the given injection rate.
-In general, those overheads also decrease when the input set size increases.  
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \paragraph{Output Accuracy}
@@ -507,7 +504,7 @@ The performance of the optimal fault tolerant version is consistently much bette
 
 \begin{figure*}[ht!]
 \centering
-\includegraphics[width=2.00\columnwidth]{figs/Lasso_EstdCost.png}
+\includegraphics[height=2.75in]{figs/Lasso_EstdCost.png}
 \vspace{-10pt}
 \caption{Execution time of ADDR relative to non-fault tolerant fault-free execution time. Results for the non-fault tolerant version (red) and the optimal fault tolerant version (blue) are shown.}
 \vspace{-10pt}
@@ -516,7 +513,7 @@ The performance of the optimal fault tolerant version is consistently much bette
 
 \begin{figure*}[ht!]
 \centering
-\includegraphics[width=2.00\columnwidth]{figs/DRC_EstdCost.png}
+\includegraphics[height=2.75in]{figs/DRC_EstdCost.png}
 \vspace{-10pt}
 \caption{Execution time of DRC relative to non-fault tolerant fault-free execution time. Results for the non-fault tolerant version (red) and the optimal fault tolerant version (blue) are shown.}
 \vspace{-10pt}
@@ -525,7 +522,7 @@ The performance of the optimal fault tolerant version is consistently much bette
 
 \begin{figure*}[ht!]
 \centering
-\includegraphics[width=2.00\columnwidth]{figs/Hattrick_EstdCost.png}
+\includegraphics[height=2.75in]{figs/Hattrick_EstdCost.png}
 \vspace{-10pt}
 \caption{Execution time of Hattrick relative to non-fault tolerant fault-free execution time. Results for the non-fault tolerant version (red) and the optimal fault tolerant version (blue) are shown.}
 \vspace{-10pt}
@@ -546,35 +543,28 @@ The performance of the optimal fault tolerant version is consistently much bette
 
 If the probability that a given run completes without an unrecoverable error is greater than 0 then the application will eventually complete with some output after some number of restarts.
 This section evaluates the distribution of errors in the resulting outputs.
-The outputs of the different applications are as follows:
-\begin{itemize}
-    \item ADDR: vector that holds the solution to the linear system.
-    \item Hattrick: vector that holds the state of the n-body system at the final application time-step, with 6 numbers per body.
-    \item DRC: a Pulse Code Modulation-formatted file, which is a sequence of numbers.
-\end{itemize}
+The outputs of are, for ADDR, vectors that holds the solution to the linear system.
+For Hattrick, they are vectoris that hold the state of the n-body system at the final application time-step, with 6 numbers per body
+and and for DRC they are a Pulse Code Modulation-formatted file, which is a sequence of numbers.
 Since the outputs of each routine can be represented as vectors we calculate the error in the outputs by comparing the vector $v_e$ returned by each routine when errors are injected to the correct vector $v_c$ computed during a fault-free run and computing the L2 norm of the difference: $\sqrt{\frac{\sum_{i} (v_c-v_e)^2}{\left| v_c \right|}}$.
 
-Figures~\ref{fig:Lasso_ImperfectRate}, \ref{fig:DRC_ImperfectRate} and \ref{fig:Hattrick_ImperfectRate} show the errors in application results from a user-centric perspective.
-Given a user-specified error magnitude that must be satisfied by application results these figures plot the fraction of application runs for which this target was satisfied
+Figures~\ref{fig:Lasso_ImperfectRate}, \ref{fig:DRC_ImperfectRate} and \ref{fig:Hattrick_ImperfectRate} show the errors in ADDR, DRC and Hattrick results from a user-centric perspective.
+They plot the fraction of application runs for which a numerical error equal or smaller than $10^{-8}$ is achieved.
 From left to right each figure shows graphs for different input sizes and from top to bottom it shows results for different error magnitude bounds.
-The x-axis in each graph shows the fault injection rate (logarithmic) while the y-axis shows the fraction of runs where the error target was satisfied (linear).
+The x-axis in each graph shows the fault injection rate while the y-axis shows the fraction of runs where the error target was satisfied.
+Both axis are expressed in logarithmic scale.
 Each graph shows data for the non-fault tolerant version of the application (all points connected by the line) as well as all the the fault tolerant versions (optimal configurations connected by a line).
 The 95\% confidence interval is plotted and denoted range of probabilities that the error bound will be achieved at the given error rate and application configuration in 95\% of all trials.
 
-\greg{Sui, please confirm that the following is true} \sui{Yes. ADDR is sensitive to errors, and even a small number of error would cause noticable errors in the results. Comparing the leftmost data points on the ``probability of not satisfying'' graphs of the 3 applications.}
-The data shows that the probability that the non-fault tolerant version of ADDR satisfies the user-provided error bound is low, for bounds randing from 1e-10 to 1e-4.
-In contrast, the fault tolerant version of the application is significantly more successful, especially for error rates of 1e-12 and lower (\greg{need log plot to show the low accuracy rate more precisely} \sui{Changed to log plot.}).
-\greg{Can mention the fact that the fault tolerant versions are most successful for loose error bounds and small inputs but the success rate is poor for the 10x input. Why?} \sui{I know why. After inspecting Lasso's code, it turns out Lasso contains TWO branches of code: one on ``fat'' matrices and the other on ``skinny'' matrices. Only 10x input triggers the ``fat matrix'' code and inputs 20 through 100 would trigger the ``skinny'' code. The two versions of code are not the same therefore they would be vulnerable to soft errors to different degrees.}
+Figures~\ref{fig:Lasso_ImperfectRate}, \ref{fig:DRC_ImperfectRate} and \ref{fig:Hattrick_ImperfectRate} show that the probability that the non-fault tolerant version of each one the three application satisfies the user-provided error bound is low especially for fault injection rates $10^{-9}$ to $10^{-11}$.  
+In contrast, the fault tolerant version of the application is significantly more successful, especially for error rates of $10^{-9}$ and lower.
 
-\greg{I won't comment on the DRC errors because Sui is currently trying to improve them. Right now we're not being very successful. However, since DRC is a single precision code, we should really be considering much larger error bounds, like 1e-6 or 1e-4}. \sui{Expanding the ranges makes sense. Plus, I think the range for Hattrick can be as tight as 1e-20. I have used 1e-17, 1e-14 and 1e-10 in the updated visualization.}
-
-\greg{Its hard to comment on Hattrick until we have a version of the plots with a logscale y-axis since it'll tell us exactly how successful the fault tolerant versions of the code are. Also, what are the relative execution times of these input files? This will give us an idea of how vulnerable they are.} \sui{Input 1=55s; Input 2=155s; Input 3=82s; Input 4=120s }
 
 \begin{figure*}[ht!]
 \centering
 %\includegraphics[height=5in]{figs/Lasso_ImperfectRate.png}
 \includegraphics[height=3in]{figs/Lasso_ImperfectRate_log.png}
-\caption{Probability of not satisfying the user-provided error bound for ADDR \greg{why do the probabilities of the no-FT version not change as the error threshold changes? Also, it may be good to show fewer columns but add graphs where the y-scale is a log-plot} \sui{Added a log plot.}}
+\caption{Probability of not satisfying the user-provided error bound for ADDR. Results for the non-fault tolerant version (red) and the optimal fault tolerant version (blue) are shown.}
 \label{fig:Lasso_ImperfectRate}
 \end{figure*}
 
@@ -582,7 +572,7 @@ In contrast, the fault tolerant version of the application is significantly more
 \centering
 %\includegraphics[height=3in]{figs/DRC_ImperfectRate.png}
 \includegraphics[height=3in]{figs/DRC_ImperfectRate_log.png}
-\caption{Probability of not satisfying the user-provided error bound for DRC \greg{why do the probabilities of the no-FT version not change as the error threshold changes? Also, it may be good to show fewer columns but add graphs where the y-scale is a log-plot} \sui{Added a log plot (on the right).}}
+\caption{Probability of not satisfying the user-provided error bound for DRC. Results for the non-fault tolerant version (red) and the optimal fault tolerant version (blue) are shown.}
 \label{fig:DRC_ImperfectRate}
 \end{figure*}
 
@@ -590,17 +580,22 @@ In contrast, the fault tolerant version of the application is significantly more
 \centering
 %\includegraphics[height=3in]{figs/Hattrick_ImperfectRate.png}
 \includegraphics[height=3in]{figs/Hattrick_ImperfectRate_log.png}
-\caption{Probability of not satisfying the user-provided error bound for Hattrick \greg{why do the probabilities of the no-FT version not change as the error threshold changes? Also, it may be good to show fewer columns but add graphs where the y-scale is a log-plot} \sui{The change is small therefore not visible on a linear scale. Switching to log plot revealed those tiny differences.}}
+\caption{Probability of not satisfying the user-provided error bound for Hattrick. Results for the non-fault tolerant version (red) and the optimal fault tolerant version (blue) are shown.}
 \label{fig:Hattrick_ImperfectRate}
 \end{figure*}
 
-\subsection{Overall Evaluation}
-\label{sec:eval:overall}
+%\subsection{Overall Evaluation}
+%\label{sec:eval:overall}
 
-%Experiment: Final graph that shows slowdown for each desired probability of perfect results.
+%%Experiment: Final graph that shows slowdown for each desired probability of perfect results.
 
 \section{Summary}
 \label{sec:summary}
+
+In this paper we show that it is possible to effectively protect three real scientific applications from a wide range of faults by properly combining three different fault tolerant mechanisms:       
+Algorithmic error checks, replication of critical data structures and checkpoint-restart of individual routines.
+We demonstrate that very significant improvements can be achieved in terms of reduction of performance slowdown and output numerical accuracy when scientific problems face error injection rates from $3 \cdot 10^{-11}$ and $3 \cdot 10^{-14}$ per processor cycle in a 1Ghz, which are the expected rates in future high performance computing systems.
+This work demonstrates that current scientific application can be safely executed on such systems if the programmers combine resilience techniques in the way it is described.    
 
 \bibliographystyle{abbrv}
 \bibliography{bibs}
