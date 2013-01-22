@@ -1,10 +1,13 @@
-LATEX_DIRECTORY=$(HOME)/texlive/2012/bin/x86_64-linux/
-LATEX=$(LATEX_DIRECTORY)/pdflatex
-BIBTEX=$(LATEX_DIRECTORY)/bibtex
+LATEX=$(HOME)/texlive/2012/bin/x86_64-linux/pdflatex
+BIBTEX=$(HOME)/texlive/2012/bin/x86_64-linux/bibtex
 
 all: makepaper
 
 makepaper:
+	$(LATEX) paper.tex
+	$(LATEX) paper.tex
+	$(BIBTEX) paper
+	$(LATEX) paper.tex
 	$(LATEX) paper.tex
 
 makereport:
