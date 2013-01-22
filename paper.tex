@@ -295,28 +295,15 @@ As our experiments show, the cost of algorithmic error detection is low and drop
 \centering
 \includegraphics[width=1.00\columnwidth]{figs/4_1_1_Overall_Breakdown.png}
 %\vspace{-5pt}
-\caption{Overhead of resilience techniques when no errors are injected and when errors are injected (points).}
+\caption{Overhead of resilience techniques. Results when no errors are injected are shown in the bars while overheads when errors are injected are expressed by using points.}
 \label{fig:routine_all_ovhd}
 \end{figure}
 
-Figure~\ref{fig:routine_all_ovhd} shows the overhead of all resilience techniques with no fault injection.
-The data shows that checkpointing consumes as much, if not more, time than error detection but that this cost grows more slowly than the routines' computational cost.
-In routines MV and RK the inputs are sufficiently small that checkpointing has negligible cost.
-Howveer, because MV runs quickly and because RK takes many checkpoints ($9000 \cdot input size)$), the cost of saving processor state is small but not negligible.
-
-%Finally, Figure~\ref{fig:routine_exp_exec} documents the overhead of resilience when errors are injected into application execution, accounting for the slowdowns due to the resilience mechanisms as well as rollbacks due to error detections.
-
-\sui{(Describe Fig.2 when faults are injected)}
-
-%Each routine's graph shows $\frac{\texttt{Time with Errors}}{\texttt{Time No Errors}}$, where the \texttt{Time with Errors} is average increase execution time of a resilient or non-resilient version of the routine when running on the same range of inputs as above, and \texttt{Time No Errors} is the execution time of the non-resilient version on the same inputs when no errors are injected.
-%The graph for each routine reports this metric for all of the above input sizes, error injection rates between 1e-8 and \sui{(1e-8 is the highest error rate that we can have for most runs to complete) and 1e-10 (is the lowest error rate we would observe errors from mosts of the runs) } \greg{confirm!} and all resilience configurations (no resilience and resilience with detection thresholds between 1e-6 and 1e-8), as the average time of \greg{???} runs \sui{100 runs per configuration}.
-The data points within each figure are organized horizontally according to the average number of errors injected into runs with the given input size and at the given injection rate. \greg{Do the error counts include errors after rollbacks?} \sui{No, because the error count is the number of errors for Non-FT runs with errors. Since there is no FT and no checkpointing in these configurations, the number doesn't include errors after rollbacks. }
-This average error count is shown on the x-axis.
-All runs with the same resilience configuration are joined together into a line to highlight its properties.
-
-\sui{These are about Figure 2}The data shows \greg{???} \sui{Soft errors may cause the routines to run longer due to rollback in attempt to correct the errors. The higher the error rate, the more likely rollback is to occur. For example, the Cholesky Decomposition routine with input size 100, when exposed to an error rate of 1e-06, would run on average twice as long as when no fault is injected. That means in this case, every one of the runs tend to have 100\% overhead. In some cases the algorithm would give up retrying after the fifth time because it is unable to recover from the corrupt inputs. For example, for FFT exposed at a fault rate of 1e-08, the average overhead, as computed by dividing the time spent in the fault-tolerance codes by the baseline running time, decreases, because more runs tend to early-terminate when too many elements in the input have been corrupted.}
-
-\sui{I will add a graph showing how many of the inputs have been corrupted and failed to recover. This is an important issue for FFT.}
+Figure~\ref{fig:routine_all_ovhd} shows in the bars the overhead of all resilience techniques with no fault injection.
+The data shows that checkpointing routine's input (input backup bar) consumes more time than algorithm specific data corruption mechanisms (checker bar). In all cases, the overheads decrease as the input set size increses.
+The same figure shows in the points the computational overhead when errors are injected. 
+The data points within each figure are organized horizontally according to the average number of errors injected into runs with the given input size and at the given injection rate.
+In general, those overheads also decrease when the input set size increases.  
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \paragraph{Output Accuracy}
@@ -337,40 +324,38 @@ All runs with the same resilience configuration are joined together into a line 
 \end{figure}
 
 We now evaluate the effectiveness of our algorithmic detectors when errors are injected.
-Figures~\ref{fig:algo_err_dist} and \ref{fig:algo_err_heatmap} show the fraction of entries in the outputs of each routine (y-axis) that have an error of a given magnitude (x-axis) as error magnitudes span from 1e-14 to 1e-4.
-Figure~\ref{fig:algo_err_dist} is a focused view on few representative cases (each routine run on a single input size and error injection rate) across different resilience configurations: no error detection as well as detection thresholds of 1e-6, 1e-7 and 1e-8.
+Figures~\ref{fig:algo_err_dist} show the fraction of entries in the outputs of each routine (y-axis) that have an error of a given magnitude (x-axis) as error magnitudes span from 1e-14 to 1e-4.
+This figure is a focused view on few representative cases (each routine run on a single input size and error injection rate) across different resilience configurations: no error detection as well as detection thresholds of 1e-6, 1e-7 and 1e-8.
 As the error magnitude increases the fraction of output entries with errors of that magnitude drops.
 Importantly, the fraction of erroneous entries is reduced at all magnitudes as a result of error detection and restart.
 Further, this reduction is more significant as the detection threshold shrinks since smaller magnitude errors are detected.
 
-Figure~\ref{fig:algo_err_heatmap} shows the same information but for all experimental configurations: (i) input sizes of n=100 to 500 for linear algebra, 512K-8M size inputs for FFT and \greg{???} \sui{10 to 100} for RK; (ii) error injection rates of 1e-7 to 1e-10.
+Figure~\ref{fig:algo_err_heatmap} shows the same information but for all experimental configurations: (i) input sizes of n=100 to 500 for linear algebra, 512K-8M size inputs for FFT and 10 100 for RK; (ii) error injection rates of 1e-7 to 1e-10.
 The graph is a grid, with results for different routines listed vertically and different resilience configurations (no detection and different detection thresholds) listed horizontally.
 The graph for each routine and resilience configuration presents the curves from Figure \ref{fig:algo_err_dist} as a heatmap.
 The y-axis shows different routine input sizes and error injection rates, sorted according to the average number of error injections per run, in decreasing order from top to bottom.
 The x-axis shows the different error magnitudes and the shade of each point is the fraction of the routine's entries that have a given error magnitude, with darker shades indicating more such entries.
 Thus, each row of Figure~\ref{fig:algo_err_heatmap} represents the same information as each curve in Figure~\ref{fig:algo_err_dist}, with the shades of the squares representing the same information as the height of the line's points.
 
-\marc{The y-axis should show just the number of errors injected. We can say that we have used several fault injection rates and sizes to get those numbers. Right now the picture is confusing.}
-\sui{How does this look?}
-
-Figure~\ref{fig:algo_err_heatmap} shows the same information across the entire experimental space.
-The y-axis includes all algorithms, input sizes and error rates.
-The x-axis includes several segments for different degrees of error checking: none, as well as checking with thresholds \greg{???} \sui{1e-06, 1e-07 and 1e-08}. In each segment the x-axis spans over error magnitudes from \greg{???} \sui{1e-14} to \greg{???} \sui{1e-01}.
-The box associated with each combination of the four parameters the figure indicates the fraction of outputs that have an error of this magnitude by the shade of gray it is colored with, as indicated in the legend.
-The data shows that the accurate of application results is directly related to the number of errors that impact a given application run, rather than their rate.
-Further, it shows that a reduction of detection threshold is consistently effective at reducing the fraction of errors in each algorithm's output.
+%We dont have the following figure and there is no time to generate it. 
+%Figure~\ref{fig:algo_err_heatmap} shows the same information across the entire experimental space.
+%The y-axis includes all algorithms, input sizes and error rates.
+%The x-axis includes several segments for different degrees of error checking: none, as well as checking with thresholds \greg{???} \sui{1e-06, 1e-07 and 1e-08}. In each segment the x-axis spans over error magnitudes from \greg{???} \sui{1e-14} to \greg{???} \sui{1e-01}.
+%The box associated with each combination of the four parameters the figure indicates the fraction of outputs that have an error of this magnitude by the shade of gray it is colored with, as indicated in the legend.
+%The data shows that the accurate of application results is directly related to the number of errors that impact a given application run, rather than their rate.
+%Further, it shows that a reduction of detection threshold is consistently effective at reducing the fraction of errors in each algorithm's output.
 %However, the effectiveness of algorithmic checks has a limit, with CD and FFT showing moderate error vulnerability even at threshold 1e-8.
-\sui{(Rephrase) However, the algorithmic checkers cannot cover 100\% of the errors for CD, FFT and FIR, mainly fixing errors of large magnitudes which turned out to be effective in real applications (refer to the imperfect run rate plot for DRC.)}
+%\sui{(Rephrase) However, the algorithmic checkers cannot cover 100\% of the errors for CD, FFT and FIR, mainly fixing errors of large magnitudes which turned out to be effective in real applications (refer to the imperfect run rate plot for DRC.)}
 %MM, MV and SYRK are significantly less vulnerable across the full range of error magnitudes.
-\sui{(Rephrase) The errors shown in MM, MV and SYRK are much more noticably fixed.}
-\greg{should reference vulnerability numbers more specifically}
+%\sui{(Rephrase) The errors shown in MM, MV and SYRK are much more noticably fixed.}
+%\greg{should reference vulnerability numbers more specifically}
 
 %Experiment 3: Measure the fraction fraction of routine runs that are interrupted by the detection of an error.
 %Display this information via the same heatmaps as above.
 
-\greg{For each experiment we need to include a discussion of what it means for how these checkers behave within the full-application runs.}
+%\greg{For each experiment we need to include a discussion of what it means for how these checkers behave within the full-application runs.}
 
-\sui{The checkers have performed well in reducing erroneous results from the application outputs. Checkers for linear algebra are useful in removing errors from Lasso, as one could see from the results.}
+%\sui{The checkers have performed well in reducing erroneous results from the application outputs. Checkers for linear algebra are useful in removing errors from Lasso, as one could see from the results.}
 
 %Those checkers can detect errors greater than a certain numeric threshold in those computations (determined by the user-defined error checker threshold). Once an error beyond the threshold has occurred, a re-calculation would be initiated.
 %\greg{You need to be more specific. Each routine produces a result, your checker produces a result. How are these results compared and how is the threshold used to determine if there is an error or not.}
@@ -387,21 +372,22 @@ The difference between RK routine and others motivates special discussion of its
 Since RK's adaptive step size mechanism is already effective at tolerating many numerical errors we used it as the error detector for this routine without adjusting its tolerance parameters.
 The configurable portions of the RK resilience method are thus the choice of checkpointing and/or replication strategy.
 Configurations \texttt{Ckpt} and \texttt{NoChkpt} denote whether checkpointing was used and configurations \texttt{Re} and \texttt{NoRe} denote whether replication was used.
-We use the following checkpointing intervals: every 1/100/1000/10000/100000 calls to RK4 stepping function and the following replication configurations: No replication, 1 pair of replicas for each variable inthe source code and 1 pair of replicas for each occurrance of each variable in the source code.
+We consider checkpointing periods equal to 1, $10^2$, $10^3$, $10^4$ and $10^5$ calls to the RK4 stepping function and the following replication configurations: No replication, 1 pair of replicas for each variable in the source code and 1 pair of replicas for each occurrance of each variable in the source code.
 
 \paragraph{Overheads}
 %\label{sec:res_tech:eval:ovhd}
 
-\begin{figure}[ht!]
-%\vspace{-20pt}
-\centering
-\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Overall_Breakdown_RK4}
-%\vspace{-5pt}
-\caption{Overhead of resilience techniques for RK when errors are not injected}
-\label{fig:rk_routine_detect_ovhd}
-\end{figure}
+%\begin{figure}[ht!]
+%%\vspace{-20pt}
+%\centering
+%\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Overall_Breakdown_RK4}
+%%\vspace{-5pt}
+%\caption{Overhead of resilience techniques for RK when errors are not injected}
+%\label{fig:rk_routine_detect_ovhd}
+%\end{figure}
 
-Figure~\ref{fig:rk_routine_detect_ovhd} shows the overhead of employing each of the four RK resilience techniques when no errors are injected. \sui{Marc: please explain Fig 5} 
+%Figure~\ref{fig:rk_routine_detect_ovhd} shows the overhead of employing each of the four RK resilience techniques when no errors are injected. We use here the same format as in figure\ref{fig:routine_all_ovhd}. 
+%%MARC: I decided to remove the above figure because it doesnt make sense to me and the same information is displayed in the following figure with more readibility.
 
 \begin{figure}[ht!]
 \centering
@@ -410,7 +396,7 @@ Figure~\ref{fig:rk_routine_detect_ovhd} shows the overhead of employing each of 
 \label{fig:rk_routine_exp_exec}
 \end{figure}
 
-Figure~\ref{fig:rk_routine_exp_exec} shows the RK's overhead when errors are injected.%, using the same format as Figure~\ref{fig:routine_exp_exec}.
+Figure~\ref{fig:rk_routine_exp_exec} shows the RK's overhead when 0 up to 10 errors per run are injected.%, using the same format as Figure~\ref{fig:routine_exp_exec}.
 Although the \texttt{NoRe\_NoCkpt} configuration has the lowest overhead when only a few errors are injected (low error rate or small execution times), as the number of errors per run increase this configuration quickly becomes extremely slow because an error is detected in almost every run.
 Since each such detection requires a restart of the routine, at higher error rates this causes RK to restart many times before it completes.
 In contrast, while the other configurations have a higher overhead for a few errors per run, their execution time scales much better with increasing error rates, making them significantly more practical.
@@ -477,13 +463,13 @@ As with overhead, the choice of checkpointing interval and replication degree ma
 Having evaluated the resilience properties of the individual application routines and resilience techniques we now consider our three target applications ADDR, Hattrick and DRC.
 Section~\ref{sec:eval:perf} reports on the impact of errors and resilience techniques on application performance. Section~\ref{sec:eval:acc} describes the distribution of errors in the results of these applications.
 These results are based on a fault injection campaign that includes a range of fault injection rates, input sizes and configurations of resilience mechanisms, with 100 application runs for each combination of parameters.
-This corresponds to a total of \greg{???} \sui{66100 for lasso, 43200 for DRC, 102000 for Hattrick, as counted by my scripts.} error injection experiments.
+This corresponds to a total of 66100 for lasso, 43200 for DRC, 102000 for Hattrick error injection experiments.
 
 A given application run may terminate successfully or crash due to an unrecoverable error.
 Unrecoverable errors occur when there is a segmentation fault in code outside our protected routines or if 5 rollbacks of a routine have been observed in a given run since such repeated rollbacks almost always indicate that the corruption in application state cannot be repaired.
 Since we assume that the user needs application results regardless of the error rate, if the application crashes it is restarted from the beginning as many times as needed for it to complete.
 
-To evaluate the behavior of these applications in a broad range of error environments we considered error injection rates that range from 1e-16 \greg{???}\sui{Yes. At least this is the argument I sent to the injector.} errors per cycle of the LLVM virtual machine to 1e-6 errors per cycle.
+To evaluate the behavior of these applications in a broad range of error environments we considered several error injection rates.
 For reference, assuming a typical FIT of 100-100,000 for individual processing cores (FIT = failure in one billion hours of operation and this range has been experimentally observed for commodity electronics~\cite{mem_errors:2010, DRAMerr:2009}), an HPC system with one million cores will experience .1-100 errors per hour, which is equivalent to 3e-11 - 3e-14 errors per processor cycle on a 1Ghz processor.
 The range of error injection rates used used in our experiments were chosen such that (i) on average one or more errors were injected in the executions of our target applications and (ii) at least some application runs completed without crashing.
 Results for error rates that induce fewer than one error per run were extrapolated from our experiments with higher error rates.
