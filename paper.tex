@@ -79,7 +79,9 @@ We show how these three applications can be comprehensively protected from soft 
 We demonstrate via fault injection experiments that although none of these techniques can individually protect applications from soft faults, their combination is highly effective.
 Further, we demonstrate how these techniques can be configured to offer the right level of protection at any given fault rate or input type.
 More specifically, these configurations can be used to produce a wide range of overheads and result accuracy levels and to tune the probabilistic confidence level that the given overhead or accuracy target will be met.
-\greg{Summarize real results} \sui{A tighter algorithmic checker bounds can be enabled at low error rates to completely eliminate erroneous results at a lower overhead, while a more lenient algorithmic checker would allow the user to produce more acceptable results in face of a higher error rate (such as 1e-09). Through high and low error rates, we correct more than 50\% of segmentation faults and reduce the error in the outputs by magnitudes by paying lower than 20\% overheads for linear algebra, FFT and FIR filter generation and a reasonable overhead for the integrator.}
+%\greg{Summarize real results} 
+%\sui{A tighter algorithmic checker bounds can be enabled at low error rates to completely eliminate erroneous results at a lower overhead, while a more lenient algorithmic checker would allow the user to produce more acceptable results in face of a higher error rate (such as 1e-09)} 
+For the three considered scientific codes, we correct more than 50\% of segmentation faults and we reduce the error in the outputs by one order of magnitude. The overhead is always lower than 20\%.
 
 The paper is organized as follows.
 Section~\ref{sec:soft_faults} discusses the problem of soft errors and presents the fault injection model we use to simulate them in our experiments.
@@ -246,12 +248,11 @@ This method is useful for rolling back to checkpoints recorded in the same funct
 When execution returns to the \texttt{sigsetjmp} call the checkpointed portions of the routine's state are recovered and execution repeats.
 % The overhead of this API call is having to copy the processor state into memory, therefore installing them between computation-intensive method calls adds to negligible performance degradation.
 
-Checkpoint data is protected using two different mechanisms.
+Checkpoint data is protected using two different mechanisms:
 Pointers and scalars are replicated such that the checkpoint contains two copies of each.
-Arrays of floating point numbers are protected via a block-checksum-based error correcting code..
-By treating the input array as a matrix and comparing row sums and column sums of the submatrices of that matrix, we are able to detect the existence of errors and fix a fraction of the errors.
-This algorithm takes in an array of numbers, divide it into blocks of $N \cdot N$ numbers and for each block it computes and stores the row sums and column sums that are used for recovery.
-The protection mechanism has one parameters,\texttt{N}, the size of the error correcting sum block.
+Arrays of floating point numbers are protected via a block-checksum-based error correcting approach:
+By treating the input array as a matrix and comparing row sums and column sums of the submatrices of that matrix, it detects the existence of errors and fixes them. 
+This algorithm takes an array of numbers as input, divides it into blocks of $N \cdot N$ numbers and for each block it computes and stores the row sums and column sums, which are used for recovery.
 
 The structure of each routine determines how checkpointing is deployed.
 All routines except RK are monolithic code blocks that take a relatively large amount of data as input, operate on it and then return.
@@ -278,7 +279,7 @@ This section evaluates the routines MMM, MVM, SYRK, CD, FFT and FIR.
 \includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp1_linalg}
 \includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp1_fft}
 %\vspace{-5pt}
-\caption{Overhead of resilience techniques when errors are not injected \greg{Change y-axis name to say overhead rather than ratio}}
+\caption{Overhead of resilience techniques when errors are not injected}
 \label{fig:routine_detect_ovhd}
 \end{figure}
 
@@ -286,7 +287,7 @@ This section evaluates the routines MMM, MVM, SYRK, CD, FFT and FIR.
 We evaluate the costs of the above algorithmic error checkers by measuring their costs and effectiveness when running at different error rates on different types of inputs.
 Figure \ref{fig:routine_detect_ovhd} measures the overheads of employing the algorithmic error detectors when no errors are injected, reporting the average of 100 runs.
 The linear algebra routines were executed on $nxn$ square matrices where $n$ varies from 100 to 1000.
-FFT ran on inputs vectors with 128K to 4M entries and RK ran on an integral with intervals $[0, t_1]$ where $t_1 \in \{10, 15, 20, 25, 30, 50, 75, 100\}$. The ODE system consists of a second-order nonlinear Van der Pol oscillator equation $x''(t)+\mu x'(t)(x(t)^2-1)+x(t)=0$.
+FFT ran on inputs vectors with 128K to 4M entries and RK ran on an integral with intervals $[0, t_1]$ where $t_1 \in \{10, 15, 20, 25, 30, 50, 75, 100\}$. The ODE system consists of a second-order nonlinear Van der Pol oscillator equation.
 As our experiments show, the cost of algorithmic error detection is low and drops with increasing input sizes.
 
 \begin{figure}[ht!]
