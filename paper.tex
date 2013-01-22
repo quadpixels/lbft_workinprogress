@@ -469,8 +469,8 @@ A given application run may terminate successfully or crash due to an unrecovera
 Unrecoverable errors occur when there is a segmentation fault in code outside our protected routines or if 5 rollbacks of a routine have been observed in a given run since such repeated rollbacks almost always indicate that the corruption in application state cannot be repaired.
 Since we assume that the user needs application results regardless of the error rate, if the application crashes it is restarted from the beginning as many times as needed for it to complete.
 
-To evaluate the behavior of these applications in a broad range of error environments we considered several error injection rates.
-For reference, assuming a typical FIT of 100-100,000 for individual processing cores (FIT = failure in one billion hours of operation and this range has been experimentally observed for commodity electronics~\cite{mem_errors:2010, DRAMerr:2009}), an HPC system with one million cores will experience .1-100 errors per hour, which is equivalent to 3e-11 - 3e-14 errors per processor cycle on a 1Ghz processor.
+To evaluate the behavior of these applications in a broad range of error environments we consider several error injection rates.
+For reference, assuming a typical FIT of 100-100,000 for individual processing cores (FIT = failure in one billion hours of operation and this range has been experimentally observed for commodity electronics~\cite{mem_errors:2010}), an HPC system with one million cores will experience .1-100 errors per hour, which is equivalent to 3e-11 - 3e-14 errors per processor cycle on a 1Ghz processor.
 The range of error injection rates used used in our experiments were chosen such that (i) on average one or more errors were injected in the executions of our target applications and (ii) at least some application runs completed without crashing.
 Results for error rates that induce fewer than one error per run were extrapolated from our experiments with higher error rates.
 This was done by considering only the runs where exactly one error was injected and trivially scaling the results to correspond to 1 in every $n$ runs being injected with an error while remaining $n-1$ runs complete with no injection.
@@ -481,33 +481,35 @@ This was done by considering only the runs where exactly one error was injected 
 \label{sec:eval:perf}
 
 Our fault injection experiments ran each application configuration to completion, recording whether it completed and if so, the magnitude of the error.
-We calculate the execution time of each configuration, accounting for application rollbacks via the formula $\frac{p_c*t_c}{1-p_f}$, where $p_c$ is the probability of a run completing, $t_c$ is the average completion time of such runs and $p_f$ is the probability of a run failing to complete\greg{is this right}. \sui{I don't see anything wrong}
-Figures~\ref{fig:Lasso_EstdCost}, \ref{fig:DRC_EstdCost} and \ref{fig:Hattrick_EstdCost} show the expected execution time, relative to the execution time of the non-fault tolerant version of the application when no errors are injected.
+We calculate the execution time of each configuration, accounting for application rollbacks via the formula $\frac{t_c}{1-p_f}$, $t_c$ is the average completion time of such runs and $p_f$ is the probability of a run failing to complete.
+Figures~\ref{fig:Lasso_EstdCost}, \ref{fig:DRC_EstdCost} and \ref{fig:Hattrick_EstdCost} show the expected execution time, relative to the execution time of the non-fault tolerant version of the application when no errors are injected, of the non-fault tolerant version (red) and the optimal fault tolerant version (blue). 
+The optimal fault tolerant version is the one that suffers from smaller overhead among the ones that provide more resilience enhancement. 
+To select the optimal one we consider error checker tresholds from $10^{-4}$ to $10^{-7}$ for ADDR, from $10^{-6}$ to $3 \cdot 10^{-8}$ for DRC and from using one pair of copies for each variable occurence to using a different pair of replicas for each variable occurrence for Hattrick.     
 The graphs from left to right correspond to different application input sizes.
 Within each graph the x-axis corresponds to error injection rates, while the y-axis shows the relative execution time, both logarithmic.
-Each graph shows data for the non-fault tolerant configuration of the application, connecting all the data points with a line.
-They also show the relative execution times for all the configurations of the fault tolerant version, with the line connecting the results for the configuration that is optimal for each input size and fault rate.
 
 For each configuration we plot a 95\% confidence interval.
 This is the range of relative execution times at the given error rate and application configuration in that will occur in 95\% of all trials.
 The confidence interval is computed by modeling the number of times application results will meet the error bound using a Binomial distribution.
 Given a binary random variable that is equal to 1 (i.e. error bound achieved) with probability $p$ and 0 (i.e. bound missed) with probability $1-p$ the Binomial distribution is the number of trials where it is 1.
 
-\greg{Sui, please confirm that the following is true}
-The data shows that the non-fault tolerant ADDR and Hattrick shows little slowdown as a result of injected faults.
-This is because these applications spend most of its time in linear algebra and differential equation routines which are numerically-intensive but perform relatively few memory manipulations or pointer accesses.
-As such, until it reaches error rates of 1e-9 and above ADDR does not see a significant number of aborts due to memory errors.
-The result is that the addition of resilience techniques does little to improve ADDR's performance. \sui{The addition of resilience techniques greatly improve its accuracy}
+Figure~\ref{fig:Lasso_EstdCost} shows that the non-fault tolerant ADDR slows down from 2x to 9x, depending on the input set size, as a result of the injected faults.
+The optimal fault tolerance version the algorithm shows degradation that are around one half of the non-faul tolerant one, which implies that our technique improve ADDR's resilience by 50\%. 
 
-In contrast, since DRC performs many more integer operations and memory copies, it is more vulnerable to errors that corrupt the values of pointers or cause loads and stores to target invalid memory locations.
-Such errors cause memory segmentation faults, which force DRC to restart its execution and thus incur a very high overhead.
-In contrast, the localized rollback and correction provided by our checkpointing mechanisms ensures that each restart has a much lower cost and that a single error does not propagate past the end of a single call to FFT or FIR.
+Figure~\ref{fig:DRC_EstdCost} shows results regarding the DRC application. 
+Since it performs many more integer operations and memory copies than ADDR, it is more vulnerable to errors that corrupt the values of pointers or cause loads and stores to target invalid memory locations.
+Such errors cause memory segmentation faults, which force DRC to restart its execution and thus incur a very high overhead. 
+That is the reason why the performance slowdown of its non-fault tolerant version is much larger than the ADDR one. 
+In contrast, the optimal fault tolerant version reduces almost completely the slowdown due to fault injection.   
+
+Figure~\ref{fig:Hattrick_EstdCost} shows how the performance slowdown of the fault tolerance version it is very unstable but it can reach values close to 100x. 
+The performance of the optimal fault tolerant version is consistently much better.     
 
 \begin{figure*}[ht!]
 \centering
 \includegraphics[width=2.00\columnwidth]{figs/Lasso_EstdCost.png}
 \vspace{-10pt}
-\caption{Execution time of ADDR relative to non-fault tolerant fault-free execution time}
+\caption{Execution time of ADDR relative to non-fault tolerant fault-free execution time. Results for the non-fault tolerant version (red) and the optimal fault tolerant version (blue) are shown.}
 \vspace{-10pt}
 \label{fig:Lasso_EstdCost}
 \end{figure*}
@@ -516,7 +518,7 @@ In contrast, the localized rollback and correction provided by our checkpointing
 \centering
 \includegraphics[width=2.00\columnwidth]{figs/DRC_EstdCost.png}
 \vspace{-10pt}
-\caption{Execution time of DRC relative to non-fault tolerant fault-free execution time \greg{Need confidence intervals} \sui{Added.}}
+\caption{Execution time of DRC relative to non-fault tolerant fault-free execution time. Results for the non-fault tolerant version (red) and the optimal fault tolerant version (blue) are shown.}
 \vspace{-10pt}
 \label{fig:DRC_EstdCost}
 \end{figure*}
@@ -525,7 +527,7 @@ In contrast, the localized rollback and correction provided by our checkpointing
 \centering
 \includegraphics[width=2.00\columnwidth]{figs/Hattrick_EstdCost.png}
 \vspace{-10pt}
-\caption{Execution time of Hattrick relative to non-fault tolerant fault-free execution time \greg{Need confidence intervals} \sui{Added.}}
+\caption{Execution time of Hattrick relative to non-fault tolerant fault-free execution time. Results for the non-fault tolerant version (red) and the optimal fault tolerant version (blue) are shown.}
 \vspace{-10pt}
 \label{fig:Hattrick_EstdCost}
 \end{figure*}
@@ -570,15 +572,15 @@ In contrast, the fault tolerant version of the application is significantly more
 
 \begin{figure*}[ht!]
 \centering
-%\includegraphics[height=3in]{figs/Lasso_ImperfectRate.png}
-\includegraphics[height=3in]{figs/Lasso_ImperfectRate_log.png}
+\includegraphics[height=5in]{figs/Lasso_ImperfectRate.png}
+\includegraphics[height=5in]{figs/Lasso_ImperfectRate_log.png}
 \caption{Probability of not satisfying the user-provided error bound for ADDR \greg{why do the probabilities of the no-FT version not change as the error threshold changes? Also, it may be good to show fewer columns but add graphs where the y-scale is a log-plot} \sui{Added a log plot.}}
 \label{fig:Lasso_ImperfectRate}
 \end{figure*}
 
 \begin{figure*}[ht!]
 \centering
-%\includegraphics[height=3in]{figs/DRC_ImperfectRate.png}
+\includegraphics[height=3in]{figs/DRC_ImperfectRate.png}
 \includegraphics[height=3in]{figs/DRC_ImperfectRate_log.png}
 \caption{Probability of not satisfying the user-provided error bound for DRC \greg{why do the probabilities of the no-FT version not change as the error threshold changes? Also, it may be good to show fewer columns but add graphs where the y-scale is a log-plot} \sui{Added a log plot (on the right).}}
 \label{fig:DRC_ImperfectRate}
@@ -586,7 +588,7 @@ In contrast, the fault tolerant version of the application is significantly more
 
 \begin{figure*}[ht!]
 \centering
-%\includegraphics[height=3in]{figs/Hattrick_ImperfectRate.png}
+\includegraphics[height=3in]{figs/Hattrick_ImperfectRate.png}
 \includegraphics[height=3in]{figs/Hattrick_ImperfectRate_log.png}
 \caption{Probability of not satisfying the user-provided error bound for Hattrick \greg{why do the probabilities of the no-FT version not change as the error threshold changes? Also, it may be good to show fewer columns but add graphs where the y-scale is a log-plot} \sui{The change is small therefore not visible on a linear scale. Switching to log plot revealed those tiny differences.}}
 \label{fig:Hattrick_ImperfectRate}
