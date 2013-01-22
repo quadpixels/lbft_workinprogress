@@ -330,7 +330,7 @@ As the error magnitude increases the fraction of output entries with errors of t
 Importantly, the fraction of erroneous entries is reduced at all magnitudes as a result of error detection and restart.
 Further, this reduction is more significant as the detection threshold shrinks since smaller magnitude errors are detected.
 
-Figure~\ref{fig:algo_err_heatmap} shows the same information but for all experimental configurations: (i) input sizes of n=100 to 500 for linear algebra, 512K-8M size inputs for FFT and 10 100 for RK; (ii) error injection rates of 1e-7 to 1e-10.
+Figure~\ref{fig:algo_err_heatmap} shows the same information but for all experimental configurations: (i) input sizes of n=100 to 500 for linear algebra, 512K-8M size inputs for FFT and 10, 20, 30, 50 and 100 for RK; (ii) error injection rates of 1e-7 to 1e-10.
 The graph is a grid, with results for different routines listed vertically and different resilience configurations (no detection and different detection thresholds) listed horizontally.
 The graph for each routine and resilience configuration presents the curves from Figure \ref{fig:algo_err_dist} as a heatmap.
 The y-axis shows different routine input sizes and error injection rates, sorted according to the average number of error injections per run, in decreasing order from top to bottom.
@@ -572,15 +572,15 @@ In contrast, the fault tolerant version of the application is significantly more
 
 \begin{figure*}[ht!]
 \centering
-\includegraphics[height=5in]{figs/Lasso_ImperfectRate.png}
-\includegraphics[height=5in]{figs/Lasso_ImperfectRate_log.png}
+%\includegraphics[height=5in]{figs/Lasso_ImperfectRate.png}
+\includegraphics[height=3in]{figs/Lasso_ImperfectRate_log.png}
 \caption{Probability of not satisfying the user-provided error bound for ADDR \greg{why do the probabilities of the no-FT version not change as the error threshold changes? Also, it may be good to show fewer columns but add graphs where the y-scale is a log-plot} \sui{Added a log plot.}}
 \label{fig:Lasso_ImperfectRate}
 \end{figure*}
 
 \begin{figure*}[ht!]
 \centering
-\includegraphics[height=3in]{figs/DRC_ImperfectRate.png}
+%\includegraphics[height=3in]{figs/DRC_ImperfectRate.png}
 \includegraphics[height=3in]{figs/DRC_ImperfectRate_log.png}
 \caption{Probability of not satisfying the user-provided error bound for DRC \greg{why do the probabilities of the no-FT version not change as the error threshold changes? Also, it may be good to show fewer columns but add graphs where the y-scale is a log-plot} \sui{Added a log plot (on the right).}}
 \label{fig:DRC_ImperfectRate}
@@ -588,7 +588,7 @@ In contrast, the fault tolerant version of the application is significantly more
 
 \begin{figure*}[ht!]
 \centering
-\includegraphics[height=3in]{figs/Hattrick_ImperfectRate.png}
+%\includegraphics[height=3in]{figs/Hattrick_ImperfectRate.png}
 \includegraphics[height=3in]{figs/Hattrick_ImperfectRate_log.png}
 \caption{Probability of not satisfying the user-provided error bound for Hattrick \greg{why do the probabilities of the no-FT version not change as the error threshold changes? Also, it may be good to show fewer columns but add graphs where the y-scale is a log-plot} \sui{The change is small therefore not visible on a linear scale. Switching to log plot revealed those tiny differences.}}
 \label{fig:Hattrick_ImperfectRate}
