@@ -386,7 +386,7 @@ The difference between RK routine and others motivates special discussion of its
 Since RK's adaptive step size mechanism is already effective at tolerating many numerical errors we used it as the error detector for this routine without adjusting its tolerance parameters.
 The configurable portions of the RK resilience method are thus the choice of checkpointing and/or replication strategy.
 Configurations \texttt{Ckpt} and \texttt{NoChkpt} denote whether checkpointing was used and configurations \texttt{Re} and \texttt{NoRe} denote whether replication was used.
-\greg{What checkpointing period and replication properties?} \sui{Checkpointing: every 1/100/1000/10000/100000 calls to RK4 stepping function. Replication: No replication, using 1 pair of replicas and using maximum number of replicas.}
+We use the following checkpointing intervals: every 1/100/1000/10000/100000 calls to RK4 stepping function and the following replication configurations: No replication, 1 pair of replicas for each variable inthe source code and 1 pair of replicas for each occurrance of each variable in the source code.
 
 \paragraph{Overheads}
 %\label{sec:res_tech:eval:ovhd}
@@ -400,7 +400,7 @@ Configurations \texttt{Ckpt} and \texttt{NoChkpt} denote whether checkpointing w
 \label{fig:rk_routine_detect_ovhd}
 \end{figure}
 
-Figure~\ref{fig:rk_routine_detect_ovhd} shows the overhead of employing each of the four RK resilience techniques when no errors are injected. \greg{This should be the same format as Figure~\ref{fig:routine_all_ovhd}} 
+Figure~\ref{fig:rk_routine_detect_ovhd} shows the overhead of employing each of the four RK resilience techniques when no errors are injected. \sui{Marc: please explain Fig 5} 
 
 \begin{figure}[ht!]
 \centering
@@ -409,7 +409,7 @@ Figure~\ref{fig:rk_routine_detect_ovhd} shows the overhead of employing each of 
 \label{fig:rk_routine_exp_exec}
 \end{figure}
 
-Figure~\ref{fig:rk_routine_exp_exec} shows the RK's overhead when errors are injected, using the same format as Figure~\ref{fig:routine_exp_exec}.
+Figure~\ref{fig:rk_routine_exp_exec} shows the RK's overhead when errors are injected.%, using the same format as Figure~\ref{fig:routine_exp_exec}.
 Although the \texttt{NoRe\_NoCkpt} configuration has the lowest overhead when only a few errors are injected (low error rate or small execution times), as the number of errors per run increase this configuration quickly becomes extremely slow because an error is detected in almost every run.
 Since each such detection requires a restart of the routine, at higher error rates this causes RK to restart many times before it completes.
 In contrast, while the other configurations have a higher overhead for a few errors per run, their execution time scales much better with increasing error rates, making them significantly more practical.
