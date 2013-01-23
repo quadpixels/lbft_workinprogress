@@ -400,7 +400,7 @@ The difference between RK routine and others motivates special discussion of its
 Since RK's adaptive step size mechanism is already effective at tolerating many numerical errors we used it as the error detector for this routine without adjusting its tolerance parameters.
 The configurable portions of the RK resilience method are thus the choice of checkpointing and/or replication strategy.
 Configurations \texttt{Ckpt} and \texttt{NoChkpt} denote whether checkpointing was used and configurations \texttt{Re} and \texttt{NoRe} denote whether replication was used.
-We consider checkpointing periods equal to 1, $10^2$, $10^3$, $10^4$ and $10^5$ calls to the RK4 stepping function and the following replication configurations: No replication, 1 pair of replicas for each pointer to the vector elements of the ODE system in the source code and 1 pair of replicas for each occurrance of each pointer in the source code (these configurations correspond to ``No repilcation'', ``Medium replication'' and ``Maximum replication'' in figure \ref{fig:rt_algo_err_heatmap}). 
+We consider checkpointing periods equal to 1, $10^2$, $10^3$, $10^4$ and $10^5$ calls to the RK4 stepping function and the following replication configurations: No replication, 1 pair of replicas for each pointer to the vector elements of the ODE system in the source code and 1 pair of replicas for each occurrence of each pointer in the source code (these configurations correspond to ``No repilcation'', ``Medium replication'' and ``Maximum replication'' in figure \ref{fig:rt_algo_err_heatmap}). 
 In the latter two options, the replicas are used to correct the pointers before each access to it in the source code of the integrator.
 
 \paragraph{Overheads}
