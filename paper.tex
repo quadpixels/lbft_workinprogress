@@ -316,13 +316,31 @@ The data shows that checkpointing routine's input (input backup bar) consumes mo
 \begin{figure}[ht!]
 \centering
 \includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp2_2_Heatmap_Error_ConfSpace.png}
+\begin{tabular}{|p{0.5in}|p{0.7in}|p{0.7in}|p{0.7in}|}
+\hline
+Routine & Threshold 1 & Threshold 2 & Threshold 3 \\ 
+\hline
+\hline
+CD & 1e-06 & 1e-07 & 1e-08 \\
+\hline
+FFT & 1e-06 & 1e-09 & 1e-14 \\
+\hline
+FIR & 1e-06 & 1e-09 & 1e-14 \\
+\hline
+MM & 1e-06 & 1e-07 & 1e-08 \\
+\hline
+MV & 1e-06 & 1e-07 & 1e-08 \\
+\hline
+SYRK & 1e-06 & 1e-07 & 1e-08 \\
+\hline
+\end{tabular}
 \caption{Error magnitude histogram of the entire configuration space}
 \label{fig:algo_err_heatmap}
 \end{figure}
 
 We now evaluate the effectiveness of our algorithmic detectors when errors are injected.
 Figures~\ref{fig:algo_err_dist} show the fraction of entries in the outputs of each routine (y-axis) that have an error of a given magnitude (x-axis) as error magnitudes span from 1e-14 to 1e-4.
-This figure is a focused view on few representative cases (each routine run on a single input size and error injection rate) across different resilience configurations: no error detection as well as detection thresholds of 1e-6, 1e-7 and 1e-8.
+This figure is a focused view on few representative cases (each routine run on a single input size and error injection rate) across different resilience configurations: no error detection as well as three error detection thresholds.
 As the error magnitude increases the fraction of output entries with errors of that magnitude drops.
 Importantly, the fraction of erroneous entries is reduced at all magnitudes as a result of error detection and restart.
 Further, this reduction is more significant as the detection threshold shrinks since smaller magnitude errors are detected.
@@ -369,7 +387,7 @@ The difference between RK routine and others motivates special discussion of its
 Since RK's adaptive step size mechanism is already effective at tolerating many numerical errors we used it as the error detector for this routine without adjusting its tolerance parameters.
 The configurable portions of the RK resilience method are thus the choice of checkpointing and/or replication strategy.
 Configurations \texttt{Ckpt} and \texttt{NoChkpt} denote whether checkpointing was used and configurations \texttt{Re} and \texttt{NoRe} denote whether replication was used.
-We consider checkpointing periods equal to 1, $10^2$, $10^3$, $10^4$ and $10^5$ calls to the RK4 stepping function and the following replication configurations: No replication, 1 pair of replicas for each variable in the source code and 1 pair of replicas for each occurrance of each variable in the source code.
+We consider checkpointing periods equal to 1, $10^2$, $10^3$, $10^4$ and $10^5$ calls to the RK4 stepping function and the following replication configurations: No replication, 1 pair of replicas for each variable in the source code and 1 pair of replicas for each occurrance of each variable in the source code (these configurations correspond to ``No repilcation'', ``Medium replication'' and ``Maximum replication'' in figure \ref{fig:rt_algo_err_heatmap}).
 
 \paragraph{Overheads}
 %\label{sec:res_tech:eval:ovhd}
@@ -394,7 +412,7 @@ We consider checkpointing periods equal to 1, $10^2$, $10^3$, $10^4$ and $10^5$ 
 \end{figure}
 
 Figure~\ref{fig:rk_routine_exp_exec} shows the RK's overhead when 0 up to 10 errors per run are injected.%, using the same format as Figure~\ref{fig:routine_exp_exec}.
-Although the \texttt{NoRe\_NoCkpt} configuration has the lowest overhead when only a few errors are injected (low error rate or small execution times), as the number of errors per run increase this configuration quickly becomes extremely slow because an error is detected in almost every run.
+Although the \texttt{NoRe\_NoCkpt} configuration has the lowest overhead when only a few errors are injected (low error rate or small execution times), as the number of errors per run increases this configuration quickly becomes extremely slow because an error is detected in almost every run.
 Since each such detection requires a restart of the routine, at higher error rates this causes RK to restart many times before it completes.
 In contrast, while the other configurations have a higher overhead for a few errors per run, their execution time scales much better with increasing error rates, making them significantly more practical.
 By varying the checkpointing interval and the degree to which various RK variables are replicated it is possible to achieve a wide range of design points that provide the best performance at various error rates.
@@ -416,8 +434,8 @@ By varying the checkpointing interval and the degree to which various RK variabl
 \label{fig:rk_effectiveness}
 \end{figure}
 
-Figure~\ref{fig:rt_algo_err_heatmap} shows the fraction of errors in RK's outputs for the four resilience configurations, in the same format as Figure~\ref{fig:algo_err_heatmap}.
-It shows that the use of either resilience approaches significantly reduces RK's vulnerability to soft errors and the use of both techniques is even more effective.
+Figure~\ref{fig:rt_algo_err_heatmap} shows the fraction of errors in RK's outputs for various checkpointing and replication configurations, in the same format as Figure~\ref{fig:algo_err_heatmap}.
+It shows that the use of either resilience approaches reduces RK's vulnerability to soft errors, preserving the correctness of its output, and the use of both techniques is even more effective.
 Figure~\ref{fig:rk_effectiveness} shows this from a different perspective: the fraction of RK runs where the root-mean-squared error of the output vector is below 1e-7 (y-axis), relative to the number of error injections per run (x-axis).
 It shows that RK configurations with higher level of resilience are able to achieve this accuracy target more frequently.
 This is primarily because by avoiding frequent rollbacks due to crashes these techniques reduce the total number of errors that are injected into the application run, which also reduces the probability that one such error will be missed by RK's algorithmic error detector.
@@ -478,7 +496,7 @@ This was done by considering only the runs where exactly one error was injected 
 \label{sec:eval:perf}
 
 Our fault injection experiments ran each application configuration to completion, recording whether it completed and if so, the magnitude of the error.
-We calculate the execution time of each configuration, accounting for application rollbacks via the formula $\frac{t_c}{1-p_f}$, $t_c$ is the average completion time of such runs and $p_f$ is the probability of a run failing to complete.
+We calculate the execution time of each configuration, accounting for application rollbacks via the formula $\frac{t_c}{1-p_f}$, where $t_c$ is the average completion time of such runs and $p_f$ is the probability of a run failing to complete.
 Figures~\ref{fig:Lasso_EstdCost}, \ref{fig:DRC_EstdCost} and \ref{fig:Hattrick_EstdCost} show the expected execution time, relative to the execution time of the non-fault tolerant version of the application when no errors are injected, of the non-fault tolerant version (red) and the optimal fault tolerant version (blue). 
 The optimal fault tolerant version is the one that suffers from smaller overhead among the ones that provide more resilience enhancement. 
 To select the optimal one we consider error checker tresholds from $10^{-4}$ to $10^{-7}$ for ADDR, from $10^{-6}$ to $3 \cdot 10^{-8}$ for DRC and from using one pair of copies for each variable occurence to using a different pair of replicas for each variable occurrence for Hattrick.     
@@ -563,7 +581,7 @@ In contrast, the fault tolerant version of the application is significantly more
 \begin{figure*}[ht!]
 \centering
 %\includegraphics[height=5in]{figs/Lasso_ImperfectRate.png}
-\includegraphics[height=3in]{figs/Lasso_ImperfectRate_log.png}
+\includegraphics[height=2.75in]{figs/Lasso_ImperfectRate_log.png}
 \caption{Probability of not satisfying the user-provided error bound for ADDR. Results for the non-fault tolerant version (red) and the optimal fault tolerant version (blue) are shown.}
 \label{fig:Lasso_ImperfectRate}
 \end{figure*}
@@ -571,7 +589,7 @@ In contrast, the fault tolerant version of the application is significantly more
 \begin{figure*}[ht!]
 \centering
 %\includegraphics[height=3in]{figs/DRC_ImperfectRate.png}
-\includegraphics[height=3in]{figs/DRC_ImperfectRate_log.png}
+\includegraphics[height=2.75in]{figs/DRC_ImperfectRate_log.png}
 \caption{Probability of not satisfying the user-provided error bound for DRC. Results for the non-fault tolerant version (red) and the optimal fault tolerant version (blue) are shown.}
 \label{fig:DRC_ImperfectRate}
 \end{figure*}
@@ -579,7 +597,7 @@ In contrast, the fault tolerant version of the application is significantly more
 \begin{figure*}[ht!]
 \centering
 %\includegraphics[height=3in]{figs/Hattrick_ImperfectRate.png}
-\includegraphics[height=3in]{figs/Hattrick_ImperfectRate_log.png}
+\includegraphics[height=2.75in]{figs/Hattrick_ImperfectRate_log.png}
 \caption{Probability of not satisfying the user-provided error bound for Hattrick. Results for the non-fault tolerant version (red) and the optimal fault tolerant version (blue) are shown.}
 \label{fig:Hattrick_ImperfectRate}
 \end{figure*}
