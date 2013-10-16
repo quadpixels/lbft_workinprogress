@@ -1,11 +1,12 @@
 %\documentclass[prodmode,acmtecs]{acmconf} % Aptara syntax
-\documentclass{sig-alternate}
+\documentclass[10pt, conference, compsocconf]{IEEEtran}
 \usepackage{url}
 \usepackage{ulem}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{color}
 \usepackage[ruled]{algorithm2e}
+\usepackage{multirow}
 
 \newcommand{\sui}[1]{%
   \textcolor{green}{SC-#1}
@@ -25,28 +26,42 @@
 \title{Comprehensive Algorithmic Resilience for \\Numeric Applications}
 %\author{Sui Chen,
 %\affil{Louisiana State University}
-%Greg Bronevetsky, Marc Casas,
+%Greg Bronevetsky,
 %\affil{Lawrence Livermore National Laboratory}
+%Marc Casas,
+%\affil{Barcelona Supercomputing Center}
 %Lu Peng
-%\affil{Louisiana State University}
-%}
+%\affil{Louisiana State University}}
+
+\author{\IEEEauthorblockN{Sui Chen}
+\IEEEauthorblockA{Louisiana State \\ University}
+\and
+\IEEEauthorblockN{Greg Bronevetsky}
+\IEEEauthorblockA{Lawrence Livermore \\ National Laboratory}
+\and
+\IEEEauthorblockN{Marc Casas-Guix}
+\IEEEauthorblockA{Barcelona Supercomputing \\ Center}
+\and
+\IEEEauthorblockN{Lu Peng}
+\IEEEauthorblockA{Louisiana State \\ University}
+}
 
 \begin{document}
 
 \maketitle
-
 \begin{abstract}
-As High-Performance Computing (HPC) systems become larger and more complex and the feature sizes of their electronic components grow smaller, the systems become increasingly vulnerable to soft faults.
-Since such faults may cause application crashes or may silently corrupt application results it is necessary to develop techniques to protect applications from such errors at a low cost in performance and power.
-\greg{Since general-purpose resilience mechanisms, such as replication, can be very expensive for general applications it is imperative to develop ways to tailor resilience techniques to the needs and properties of each application.}
 
-\greg{Extensive ongoing work on algorithmic techniques to detect and tolerate errors in common scientific sub-routines and kernels has shown that such techniques can be very effective at protecting the numeric properties of these code regions.
-However, the practical utility of these techniques has been limited by the fact that real scientific applications (i) are significantly more complex than these simple kernels and (i) are vulnerable to a wider range of errors than most algorithmic checkers focus on.
-To make scientific applications resilient to soft errors it is necessary to comprehensively combine resilience techniques that detect all the major types of errors that can affect an application and provide techniques that can tolerate them.
-Further, the techniques applied to a given application must be tailored to an application's needs and configured to provide the performance for each input, hardware error rate and application user's accuracy tolerance.
-This paper presents a case study of the design of comprehensive resilience mechanisms for four(\textbf{???}) different applications.
-In addition to exploring the space of mechanism design and configuration we project our results to massively parallel applications and show how application performance and resilience configuration choices vary with error frequency, application scale and accuracy goals.
-}
+As High-Performance Computing (HPC) systems become larger and more complex and their circuit feature sizes shrink, the systems become increasingly vulnerable to soft faults.
+Since such faults may cause application crashes or may silently corrupt application results it is necessary to develop techniques to protect applications from such errors at a low cost in performance and power.
+Since general-purpose resilience mechanisms, such as replication, can be very expensive it is imperative to develop ways to tailor resilience techniques to each application's properties and the needs of its users.
+
+Extensive ongoing work on algorithmic techniques to detect and tolerate errors in common scientific sub-routines and kernels has proven their effectiveness.
+However, their practical utility has been limited by the fact that real scientific applications (i) are significantly more complex than these simple kernels and (i) are vulnerable to a wider range of errors than most algorithmic checkers focus on.
+To make scientific applications resilient to soft errors it is necessary to comprehensively combine resilience techniques that tolerate \emph{all} the major types of application errors.
+Further, each technique must be tailored to an application's needs and configured to provide the performance for each input, hardware error rate and application user's accuracy tolerance.
+This paper presents a case study of the design of comprehensive resilience mechanisms for three application domains.
+We describe the combinations of techniques required to make a single application from each domain resilient and quantify their performance and resilience on small-scale inputs.
+Further, we use these experiments to predict the behavior of large-scale instances (1 million CPU hours) of applications in each domain when using the most efficient application configuration for each fault rate and user-specified accuracy requirement.
 
 \end{abstract}
 
@@ -55,100 +70,102 @@ In addition to exploring the space of mechanism design and configuration we proj
 
 The increasing size and complexity of HPC systems is making them increasingly vulnerable to soft faults.
 Soft faults are transient corruptions of circuit state caused by physical phenomena such as strikes by neutrons or alpha particles~\cite{baumann:2005, asciQSER:2005} or thermal electrical noise~\cite{therm_noise:2007}.
-They can affect the state of processor latches and registers and may cause the application to crash or worse, to silently return incorrect results~\cite{mpi_ser:reed:2004}.
-As the feature sizes of electronic circuits shrink, technology scaling will make soft errors a larger problem~\cite{err_scaling:2012} due to the fact that each circuit element will hold less charge and can thus be disrupted more easily.
-These phenomena make it imperative to develop techniques to make HPC systems resilient to soft faults.
+They can affect processor latches and registers and may cause the application to crash or worse, to silently return incorrect results~\cite{mpi_ser:reed:2004}.
+As circuit feature sizes shrink, technology scaling will make soft faults a larger problem~\cite{err_scaling:2012}, %due to the fact that each circuit element will hold less charge and can thus be disrupted more easily.
+which makes it imperative to develop techniques to make HPC systems resilient to soft faults.
 
-Resilience is a problem that must be addressed at all levels.
-While materials science and circuit design techniques can be used to improve resilience, they come at a cost in reduced power efficiency and performance that can become prohibitive if processors need to be sufficiently reliable to build a large HPC system.
-Techniques such as error correcting codes have been very effective at making memories and caches resilient to soft faults~\cite{mem_errors:2010}.
-However, they are more expensive for protecting core-internal state such as latches and are significantly less effective for checking the correctness of computations.
-Traditional approaches like cross-core or node replication~\cite{rmpi:2011, dyn_cmp_repl:2007} are expensive in their use of computing resources and power and their long error detection latencies require processor state to be frequently checkpointed.
-Processor designs that incorporate instruction replication~\cite{repl_smt:2000} offer fine-grained error detection and rollback but require more power as well as novel hardware features that are not likely to be included in the commodity processors used in HPC systems for cost reduction reasons.
+Resilience must be addressed at all system levels.
+Materials science and circuit design techniques can improve resilience but at the cost of reduced power efficiency and performance that can become prohibitive at processor reliability levels needed to build a large HPC system.
+Error correcting codes are very effective at making memories and caches resilient to soft faults~\cite{mem_errors:2010} but are much more expensive for latches and significantly less effective for computational circuits.
+Replication across cores or nodes~\cite{rmpi:2011, dyn_cmp_repl:2007} more than double resource requirements and their long error detection latencies require frequent checkpointing.
+Processor designs that support instruction replication~\cite{repl_smt:2000} offer fine-grained error detection and rollback but require more power as well as novel hardware features unlikely to be included in commodity processors.
 
-\greg{The limitations of automated resilience techniques has motivated the need for algorithmic techniques that can detect and tolerate errors by taking advantage of application-specific properties and invariants~\cite{amg_abft:2012, robustification:2010, abft:1984}.
-Although these techniques can be very efficient, most research work on such techniques has primarily focused on how their algorithmic invariants can be leveraged to enable accurate error detection.
-While this work is crucial, it addresses only a portion of the full challenge of making scientific applications resilient to soft faults.
+The limitations of automated resilience techniques motivates work on algorithmic detection and tolerance techniques by leveraging application-specific properties and invariants~\cite{amg_abft:2012, robustification:2010, abft:1984}.
+Although very efficient, these techniques are not general and most research has focused on algorithmic resilience for numeric kernels.
+While this is crucial, it addresses only a portion of the full challenge of making scientific applications resilient to soft faults.
 A comprehensive resilience strategy must address three areas.
-First, it must deal all the possible application-level manifestations of soft faults including numeric errors (the focus of traditional algorithmic checkers), as well as corruptions in data structures and other application state and computations.
+First, it must deal all the possible application-level manifestations of soft faults including numeric errors (focus of traditional algorithmic checkers) as well as corruptions in data structures and other state and computations.
 Second, it must address tolerance to soft faults in addition to their detection.
-Finally, given the many ways in which resilience techniques can be configured (e.g. different detection tolerances for an algorithmic checker) it must provide ways to choose the best configuration for each system and for each user's performance and accuracy needs.}
+Finally, given the many ways to configure resilience techniques (e.g. detection tolerances) it must provide ways to choose the best configuration for each system and for each user's performance and accuracy needs.
 
-\greg{
-This paper presents a case study of how existing resilience techniques can be combined to make a usable resilience solution for scientific applications.
-Within the context of three real applications we consider various combinations of algorithmic error detection, light-weight checkpoint restart to tolerate detected errors, as well as replication of pointers within data structures.
-We focus on the Alternating Direction Method of Multipliers (ADDR) for Lasso problems~\cite{lasso:2011}, the Hattrick gravitational simulation~\cite{hattrick:2012} and the Digital Room Correction (DRC) acoustic correction application~\cite{drc:2012}.
-Each application requires different resilience techniques, each of which can be configured in different ways.
-We use extensive fault injection experiments to measure the performance/resilience properties of a large space of resilience configuration within each application.
-For each configuration we measure the slowdown induced by the execution of resilience logic and roll-backs due to error detections, as well as the distribution of magnitudes of error in the application's output.
-We then demonstrate how these measurements can be used to configure the resilience mechanisms used with each application to minimize overhead while meeting the user's accuracy requirements.
-Since in practice users do not have a clear idea of the level of accuracy needed from an algorithm's results, we demonstrate a novel alternative method to specify accuracy requirements as the level noise in the application's input required to deviate the output by a given magnitude (i.e. similar to backward error analysis).
-Finally, we extrapolate from the small-scale application runs considered in our fault injection campaign (the many runs required to cover the large space of resilience configurations limited the length of each run) to application runs with 1 million CPU hours via three different models of error propagation.
-Our results demonstrate that when applications use all the relevant resilience methods, configured for maximum efficiency, the overhead of resilient execution on expected Exascale designs is low.
+This paper presents a case study of how existing resilience techniques can be combined to make an efficient resilience solution for large-scale scientific applications.
+Our analysis focuses on linear solver, signal processing and n-body simulation applications, using the following applications as representatives: Alternating Direction Method of Multipliers (ADDR) for Lasso problems~\cite{lasso:2011}, the Hattrick gravitational simulation~\cite{hattrick:2012} and the Digital Room Correction (DRC) acoustic correction application~\cite{drc:2012}, respectively.
+We use small-scale runs of each application on multiple inputs to comprehensively measure their performance and resilience properties when protected by various various combinations of algorithmic error detection, light-weight checkpoint restart (tolerates detected errors), as well as pointer replication.
+We then extrapolate from these small-scale experiments to predict the performance and resilience properties of large-scale runs (1 million CPU hours) of applications within each domain.
+This is done by modeling large-scale runs as dependence graphs that connect small-scale runs into parallel reductions, sequential chains or a combination of both.
+Our analysis explicitly accounts for the accuracy that users may require from applications in terms of a bound on the Root Mean Squared (RMS) Error of the results as well as a bound on the probability that this target will not be met.
+To simplify the process of choosing the appropriate error bound we also provide a characterization of application output error in terms of the amount of measurement noise in application inputs that may produce the same deviation in application outputs (similar to backward error analysis).
+This makes it possible for application users to rationally trade off the accuracy of application results against the cost to achieve it (e.g. power, time or system purchase price).
+
+%Each application requires different resilience techniques, each of which can be configured in different ways.
+%We use extensive fault injection experiments to measure the performance/resilience properties of a large space of resilience configuration within each application.
+%For each application configuration we measure the slowdown induced by the execution of resilience logic and roll-backs due to error detections, as well as the distribution of magnitudes of error in the application's output.
+%We then demonstrate how these measurements can be used to configure the resilience mechanisms used with each application to minimize overhead while meeting the user's accuracy requirements.
+%Since in practice users do not have a clear idea of the level of accuracy needed from an algorithm's results, we demonstrate a novel alternative method to specify accuracy requirements as the level noise in the application's input required to deviate the output by a given magnitude (i.e. similar to backward error analysis).
+%Finally, we extrapolate from the small-scale application runs considered in our fault injection campaign (the many runs required to cover the large space of resilience configurations limited the length of each run) to application runs with 1 million CPU hours via three different models of error propagation.
+%Our results demonstrate that when applications use all the relevant resilience methods, configured for maximum efficiency, the overhead of resilient execution on expected Exascale designs is low.
 
 \greg{Need a few highlight with concrete numbers}
 
 The paper is organized as follows.
 Section~\ref{sec:soft_faults} discusses the problem of soft errors and presents the fault injection model we use to simulate them in our experiments.
-The applications to which we apply our resilience methodology are described in Section~\ref{sec:apps}.
-Section~\ref{sec:res_tech} summarizes the major routines of these applications and describes how these resilience techniques are applied to them.
-Further, it experimentally evaluates the resilience techniques, describing their overheads and the accuracy levels of the protected routines at a wide range of possible error rates.
-The effectiveness of our methodology for protecting the full applications is evaluated in Section~\ref{sec:eval}.
+The applications we focus on are described in Section~\ref{sec:apps}.
+Section~\ref{sec:res_tech} summarizes the major routines of these applications and describes the resilience techniques that are applied to them.
+It further details our methodology to evaluate application performance and resilience in the face of faults.
+Finally, Section~\ref{sec:eval} describes our procedure to use small-scale runs of our three target applications to predict the performance and resilience properties of large-scale runs of applications within their respective domains.
 
 \section{Soft Faults}
 \label{sec:soft_faults}
 
-Cosmic rays or alpha particles hitting the computer circuits and accumulating a sufficient amount of energy may invert the device logic states from "0" to "1" or from "1" to "0"~\cite{Ziegler:1996:TCR:226354.226356,baumann:2005}.
-These inversions are termed as soft errors or soft faults.
-The shrinking processor and memory feature size and the lower threshold voltage coming with relentless manufacturing technology scaling make modern high performance computers are highly vulnerable to soft errors which propagate as the program is being executed.
-Prior studies have demonstrated that soft errors occurring in all the important bits that are required for Architecturally Correct Execution (ACE)~\cite{avf:2003} eventually change the program outcome, i.e., manifest errors to the application.
-The ACE bits include critical information to keep the program logic such as the program counter register for a committed instruction.
+The states of logic devices can be corrupted due to fluctuations in circuit voltages or strikes by charged particles from chip packaging or due to cosmic rays~\cite{Ziegler:1996:TCR:226354.226356,baumann:2005}.
+These ``soft faults'' are expected to become increasingly common as circuit scaling further shrinks circuit feature size and the threshold voltage.
+Prior studies have demonstrated that soft errors in processor state required for Architecturally Correct Execution (ACE)~\cite{avf:2003,mpi_ser:reed:2004} eventually change the program outcome.
+%The ACE bits include critical information to keep the program logic such as the program counter register for a committed instruction.
 In the past decades, soft errors have brought significant losses on commercial servers and high performance computers such as the recall of Sun servers due to memory errors~\cite{baumann:2005} or the cache corruptions in the ASCI Q system~\cite{asciQSER:2005}.
 
 %Discuss prior work on replication and algorithmic techniques, emphasize that in this paper we're focusing on software resilience since hardware resilience is extremely difficult to deploy in real processors since the costs have to be carried by non-HPC markets that care much less about it.
 
-We use a fault injection infrastructure~\cite{relax:2010} that simulates the architecture-level effects of soft faults.
-It works by compiling application into the Low Level Virtual Machine (LLVM) typed bytecode~\cite{LLVM}.
-This bytecode is transformed to allow a bit flip in each instruction's output with some probability $P$.
-The time between injections is thus exponentially distributed with period $\frac{1}{P}$.
+We simulate soft faults using a fault injection infrastructure~\cite{relax:2010} that simulates the architecture-level effects of soft faults.
+It works by compiling application into the Low Level Virtual Machine (LLVM) typed bytecode~\cite{LLVM} and transforming it to allow bits in instruction outputs to be flipped with some probability.
+%The time between injections is thus exponentially distributed with period $\frac{1}{P}$.
 Our fault injector is a high-level approximation of the physical corruptions caused by soft errors that strikes a balance between model accuracy and cost, as do related approaches~\cite{fault_injection:iyer:1997, avf:2003}.
-Alternative models, such as injection into gate-level processor models~\cite{sesee:2004} or neutron beam irradiation~\cite{freq_dep:irom:2004} are possible but their significantly higher cost makes them impractical for conducting large-scale fault injection campaigns such as the ones reported in this paper.
-
-\sui{As a metric for quantifying errors in output caused by soft faults, we perturb inputs to numeric applications ...}
+Alternative models, such as injection into gate-level processor models~\cite{sesee:2004} or neutron beam irradiation~\cite{freq_dep:irom:2004} are possible but too expensive for large-scale fault injection campaigns such as the ones in this paper.
 
 \section{Target Applications}
 \label{sec:apps}
 
 We evaluate our resilience methodology by applying it to the following three applications.
-Since they spend most of their execution time in library routines, we focus our resilience efforts on protecting these routines, which are described in Section~\ref{sec:res_tech:err_det:algo}.
-
-%\greg{This section needs to include an experimental breakdown of where the routines spent their time. We also need to describe the types of inputs we'll be giving them in our experiments.}
+Since they spend most of their execution time in library routines, we focus our resilience efforts on protecting these routines, as described in Section~\ref{sec:res_tech:err_det:algo}.
 
 \subsection{Alternating Direction Method of Multipliers (ADDR)}
 \label{sec:apps:lasso}
-The ADDR method solves under-unconstrained linear problems $Ax=b$ for $x$ ($A$ has fewer rows than columns) while minimizing the function $f(x)$.
-This is an iterative algorithm uses 64-bit precision and that spends most of its time in the following linear algebra operations, matrix-matrix multiplication, matrix-vector multiplication, rank-k update and Cholesky factorization, using the implementations of these routines from the GNU Scientific Library~\cite{gsl:2011}.
-We focus on a specific application that uses the ADDR method to solve Lasso problems, which are defined as minimizing the function $\frac{1}{2} \left|| Ax - b \right||_2^2 + \lambda*\left|| x \right||_1$.
-It is parallelized using MPI and our experiments focus on 4-processors runs of ADDR which computes linear systems of size $\{800, 1200, ..., 3600\} \times 500$ (800 to 3600 measurements with 500 variables each) and in the experiments below are denoted $S800$, $S1200$, ..., $S3600$.
-The values in $A$ and $b$ are generated by sampling a normal distribution with a mean of 0.
-According to our experiments, the running time of this solver is not dependent on the kind of distribution the inputs are sampled from.
+ADDR is an implementation of an iterative method for solving under-unconstrained linear problems $Ax=b$ for $x$ ($A$ has fewer rows than columns) while minimizing some function $f(x)$.
+It represents the linear solver application domain.
+It uses 64-bit precision and spends most of its time in the following linear algebra operations from the GNU Scientific Library~\cite{gsl:2011}: matrix-matrix multiplication (MMM), matrix-vector multiplication (MVM), rank-k update (RK) and Cholesky decomposition (CD).
+We use ADDR to solve Lasso problems, where the function $\frac{1}{2} \left|| Ax - b \right||_2^2 + \lambda*\left|| x \right||_1$ is minimized.
+It is parallelized using MPI and our experiments focus on 4-processors runs with linear systems of size $\{800, 1200, ..., 3600\} \times 500$ as input (denoted $S800$, ..., $S3600$ below).%(800 to 3600 measurements with 500 variables each) and in the experiments below are denoted $S800$, $S1200$, ..., $S3600$.
+The values in $A$ and $b$ are generated by sampling a normal distribution with a mean of 0. \greg{What's the $\sigma$?}
+According to our experiments, the running time of this solver is not dependent on the distribution the inputs are sampled from.
 
 \subsection{DRC: Digital Room Correction}
 \label{sec:apps:drc}
 
-DRC is a sequential program generates filters for HiFi audio systems to compensate for the reflection of sounds in a room, using impulse response measurements of the audio equipment and considering the positions of the listeners.
-The inputs are stored in Pulse Code Modulation (PCM) format, which is an array of 32-bit floating point numbers representing the samples at each sampling time step and the computations are performed using 32-bit precision.
-Although the algorithm is divided into many phases the most computationally intensive step consists of the GSL's implementation of the Fast Fourier Transform and a DRC-internal implementation of Finite Impulse Response filter generation.
-This program accepts user-controllable configurations to decide the width and number of iterations of FFT transforms it uses to perform various passes on the input file, such as windowing, deconvolution, pre- and post-filtering.
+DRC is a sequential program that generates filters for HiFi audio systems to compensate for the reflection of sounds in a room, using impulse response measurements of the audio equipment and considering the positions of the listeners.
+It represents the signal processing application domain.
+DRC's inputs are stored in Pulse Code Modulation (PCM) format, which is an array of 32-bit floating point numbers representing the samples at each time step and the computations are performed using 32-bit precision.
+Most execution time is spent in the GSL implementation of Fast Fourier Transform (FFT) and a DRC-internal implementation of Finite Impulse Response (FIR) filter generation.
+%This program accepts user-controllable configurations to decide the width and number of iterations of FFT transforms it uses to perform various passes on the input file, such as windowing, deconvolution, pre- and post-filtering.
 The input used in this paper is an audio file of size 768 kilobytes, which is sampled at the rate of 30Khz, 40Khz, ..., 90Khz.
 
 \subsection{Hattrick}
 \label{sec:apps:hattrick}
-Hattrick is a sequential application simulates the motion of bodies under the effects of gravity using 64-bit precision.
-It is designed to help discover extra-solar planets by inferring their existence from Transit Timing Variations, where the difference between the times when a planet passes in front of its host star is used to infer the existence and properties of other planets in the system.
-This program spends most of its execution time in the GSL solver for Ordinary Differential Equations to solve the system's equations of motion.
+Hattrick is a sequential application that simulates the motion of bodies under the effects of gravity to help discover extra-solar planets by inferring their existence from Transit Timing Variations.
+%, where the difference between the times when a planet passes in front of its host star is used to infer the existence and properties of other planets in the system.
+It represents the n-body simulation application domain.
+Hattrick uses 64-bit precision and spends most of its execution time in the GSL solver for Ordinary Differential Equations to solve the system's equations of motion using the Runge-Kutta method (RK).
 A given input is described using three parameters: $P$=number of planets, $T$=amount of time to simulate, and $A$=the accuracy target.
 In our experiments we considered the following four inputs: $P2T2090A15$, $P2T3090A15$, $P2T4090A15$ and $P3T2090A11$, where an $A15$ and $A11$ denote accuracy targets of $1e-15$ and $1e-11$, respectively.
+\greg{Does it take transit timings as inputs? What are you perturbing?}
 
 %\subsection{Barnes Hut}
 %\label{sec:apps:barneshut}
@@ -164,10 +181,11 @@ In our experiments we considered the following four inputs: $P2T2090A15$, $P2T30
 \section{Resilience Techniques}
 \label{sec:res_tech}
 
-In this paper we consider a comprehensive resilience strategy that combines various types of error detection and recovery.
-Error detection techniques are discussed in Section~\ref{sec:res_tech:err_det}, with Section~\ref{sec:res_tech:err_det:algo} focusing on algorithmic techniques to detect errors in the numeric portions of application state, while Section~\ref{sec:res_tech:err_det:mem} focuses on protection of data structures.
-Section~\ref{sec:res_tech:cr} then considers recovery techniques based on both checkpoint-restart, which offers lower-overhead but higher-latency recovery, as well as replication of key pointers, which reduces performance but enables fast recovery.
-Finally, Section~\ref{sec:res_tech:eval} presents an experimental evaluation of the performance and accuracy properties of the resilient versions of the major routines used by our target applications, under a wide range of inputs and error injection rates.
+Our case-study focuses on a comprehensive resilience strategy that combines various types of error detection and recovery.
+Algorithmic error detection techniques of numeric state are discussed in Section~\ref{sec:res_tech:err_det}, while Section~\ref{sec:res_tech:pointers} focuses on protection of data structure pointers via replication.
+Section~\ref{sec:res_tech:cr} then considers recovery techniques based on both checkpoint-restart.%, which offers lower-overhead but higher-latency recovery, as well as replication of key pointers, which reduces performance but enables fast recovery.
+Finally, Section~\ref{sec:res_tech:eval} describes our methodology to analyze the resilience and performance properties of these mechanisms in the above applications across a broad range of configurations.
+This information is used in Section~\ref{sec:eval} to configure the resilience methods for modeled large-scale application runs to maximize the high performance across a broad range of fault rates and while satisfying user accuracy requirements.
 
 \subsection{Error Detection}
 \label{sec:res_tech:err_det}
@@ -176,157 +194,140 @@ Finally, Section~\ref{sec:res_tech:eval} presents an experimental evaluation of 
 \subsubsection{Algorithmic Detection}
 \label{sec:res_tech:err_det:algo}
 
-%\sui{Performance experiments inserted here: running algorithmic checkers across different input sizes and fault rates: 62x62 to 500x500 matrices for MM, RK, CD, MV checkers; FFT sizes of $2^8$ to $2^{24}$ for the FFT checker; Error bars should apply here, especially for the Cholesky Decomposition checker}
-
-Each algorithm used by the above application was enhanced with an algorithm-specific checker that validated its results by exploiting some algorithmic identity.
-Each checker computes some aggregate property of the algorithm's results using two different algorithms to produce vectors $v$ and $v'$.
-If their relative difference by more than some threshold $\tau$, the checker declares that an error has occurred.
-The relative difference is computed as $\frac{\left|| v-v' \right||}{max(\left||v\right||, \left||v'\right||)}$.
+Algorithms used by the above application were enhanced with checkers of their algorithmic invariants.
+Each checker computes some aggregate property of the algorithm's output in two different ways to produce values $v$ and $v'$.
+An error is detected if their relative difference $\frac{\left|| v-v' \right||}{max(\left||v\right||, \left||v'\right||)}$ is larger than some threshold $\tau$.
 Each error detection causes the routine's execution to be restarted using the rollback mechanism described in Section~\ref{sec:res_tech:cr}.
 
-\vspace{-5pt}
+%\vspace{-5pt}
 \paragraph{Matrix-matrix multiplication (MMM)}
-The operation $A \cdot B$ is checked using a matrix vector multiplication (MVM), via the identity: $(A \cdot B) \cdot x = A \cdot (B \cdot x)$, where $x$ is an error-checking vector.
-Since we set the check vector $x$ to be all 1s this is equivalent to both sides computing the sums of the columns of matrix $A \cdot B$ using a single MVM on the left and two MVMs on the right.
-Most errors in the computation of $A \cdot B$ will affect the sums of its columns and will thus be detected.
-This check is efficient because the checker is asymptotically faster than MMM, with MVM taking $O(n^2)$ time and MMM $O(n^3)$ time.
+$A \cdot B$ is checked using a matrix vector multiplication, via the identity: $(A \cdot B) \cdot x = A \cdot (B \cdot x)$, where $x$ is an error-checking vector (we use the vector of all 1s).
+%Since we set the check vector $x$ to be all 1s this is equivalent to both sides computing the sums of the columns of matrix $A \cdot B$ using a single MVM on the left and two MVMs on the right.
+%Most errors in the computation of $A \cdot B$ will affect the sums of its columns and will thus be detected.
+The checker is asymptotically faster than MMM, with MVM taking $O(n^2)$ time and MMM $O(n^3)$ time.
 
-\vspace{-5pt}
-\paragraph{Matrix-vector multiplication (MVM)}
-The MVM algorithm $Ax=b$ is checked using a similar identity $(x^TA)x = x^T(Ax) = x^Tb$.
-We again set $x$ to be the vector of 1's, making the product $x^TA$ equivalent to sum of the columns of matrix $A$.
-Although the computation of $x^TA$ involves additions rather than multiplications, the complexity of computing $x^TA$ is $O(n^2)$, the same as the original MVM operation.
-%While this cost can be reduced significantly by computing $x^TA$ once and reusing it in subsequent multiplications by the same matrix, we did not consider it in this paper because MVM took up little application execution time.
-However, for applications such as ADDR where the MVM is applied to same matrix many times with different vectors, the column sums can be reused, amortizing the cost of this computation.
-Our experimental evaluation below thus focuses on the overhead of the $x^T(Ax)$ computation, which has $O(n)$ complexity.
-
-\vspace{-5pt}
+%\vspace{-5pt}
 \paragraph{Symmetric Rank-K update (SYRK)}
-The SYRK update is a special case of matrix-matrix multiplication $B = \alpha A \cdot A^T + \beta B$, where an $n \times k$ matrix $A$ is multiplied by itself to produce an $n \times n$ matrix with rank $k$, which is incremented into the $n \times n$ matrix $B$.
-Its results are checked using the same algorithm as MMM by checking the identity $B x = \alpha A \cdot (A^Tx) + \beta B x$, where $x$ is the vector of all 1's.
-This check runs in time $O(n^2)$, as compared to the $O(n^3)$ cost of SYRK.
+Since this is a special case of MMM where $B = \alpha A \cdot A^T + \beta B$, %where an $n \times k$ matrix $A$ is multiplied by itself to produce an $n \times n$ matrix with rank $k$, which is incremented into the $n \times n$ matrix $B$.
+%Its results are checked using the same algorithm as MMM by checking the identity $B x = \alpha A \cdot (A^Tx) + \beta B x$, where $x$ is the vector of all 1's.
+%This check runs in time $O(n^2)$, as compared to the $O(n^3)$ cost of SYRK.
+we use the same check.
 
-\vspace{-5pt}
+%\vspace{-5pt}
+\paragraph{Matrix-vector multiplication (MVM)}
+$Ax=b$ is checked using a similar identity $(x^TA)x = x^T(Ax) = x^Tb$.
+%We again set $x$ to be the vector of 1's, making the product $x^TA$ equivalent to sum of the columns of matrix $A$.
+The complexity of computing $x^TA$ is $O(n^2)$, the same as the original MVM but using additions rather than multiplications.
+%While this cost can be reduced significantly by computing $x^TA$ once and reusing it in subsequent multiplications by the same matrix, we did not consider it in this paper because MVM took up little application execution time.
+Since in ADDR MVM is applied many times to the same matrix with different vector, the vector $x^TA$ can be reused, amortizing the cost of computing it.
+Our experiments below thus focus on the cost of computing $x^T(Ax)$, which has $O(n)$ complexity.
+
+%\vspace{-5pt}
 \paragraph{Cholesky Decomposition (CD)}
-In this decomposition matrix $A$ is decomposed into $L \cdot L^T$ where $L$ is a lower-triangular matrix with a positive diagonal.
-This routine is checked just like MMM by checking the identity $Ax = L \cdot (L^T x)$, which is cheaper than the $O(n^3)$ complexity of the deterministic CD algorithm.
-The GSL implements an iterative algorithm that runs faster than $O(n^3)$ time but as shown in the experiments below, it is significantly slower than our checker.
+CD decomposes matrix $A$ into $L \cdot L^T$ where $L$ is lower-triangular with a positive diagonal.
+It is checked via the identity $Ax = L \cdot (L^T x)$, which at $O(n^2)$ complexity is cheaper than the $O(n^3)$ complexity of the deterministic CD algorithm.
+GSL implements an iterative algorithm that runs faster than $O(n^3)$ time but as our experiments show, our checker is still significantly faster.
 
-\vspace{-5pt}
+%\vspace{-5pt}
 \paragraph{Fast Fourier Transform (FFT)}
-The FFT algorithm decomposes a function into a sum of sine waves of different frequencies: $f(x) = \sum_{n=0}^{N-1} x_n e^{-i2\pi k n / N}$ for some constant $k$.
-We check the results of FFT by using Parseval's theorem, which states that $\sum_{n=0}^{N-1} \left| x[n] \right|^2 = \frac{1}{N} \sum_{k=0}^{N-1} \left| X[k] \right|^2$, where $x$ is the original function and $X$ is its transform.
+Decomposes a function into a sum of sine waves of different frequencies: $f(x) = \sum_{n=0}^{N-1} x_n e^{-i2\pi k n / N}$ for some constant $k$.
+It is checked using Parseval's theorem: $\sum_{n=0}^{N-1} \left| x[n] \right|^2 = \frac{1}{N} \sum_{k=0}^{N-1} \left| X[k] \right|^2$, where $x$ is the original function and $X$ is its transform.
 Intuitively it means that the energy of the original function is preserved by the transform.
-GSL implements optimized radix 2, 3, 4, 5, 6 and 7 subtransform routines as well as a general radix-N FFT routine. The subtransforms are optimized and consume $O(n log(n))$ time and the general one consumes $O(n^2)$ time. Therefore, GSL has a scheduling algorithm that factorizes the length of the input FFT, running the subtransforms whenever possible, using the fallback general radix-N routine only for the remaining factors.
-The theorem applies to FFT of any radix and provides an $O(n)$ time check for the $O(n log(n))$ or $O(n^2)$ FFT algorithms.
+%GSL implements optimized radix 2, 3, 4, 5, 6 and 7 subtransform routines as well as a general radix-N FFT routine. The subtransforms are optimized and consume $O(n log(n))$ time and the general one consumes $O(n^2)$ time. Therefore, GSL has a scheduling algorithm that factorizes the length of the input FFT, running the subtransforms whenever possible, using the fallback general radix-N routine only for the remaining factors.
+%The theorem applies to FFT of any radix and provides an $O(n)$ time check for the $O(n log(n))$ or $O(n^2)$ FFT algorithms.
+This check runs in $O(n)$ time, as compared to $O(n log(n))$ or $O(n^2)$ for the FFT algorithm itself (depends on the type of FFT problem).
 
-\vspace{-5pt}
+%\vspace{-5pt}
 \paragraph{Finite Impulse Response Filter Generation (FIR)}
-The FIR filter generation algorithm used in DRC generates a series of samples over the function $sinc(x)=\frac{sin(x)}{x}$
+The DRC FIR filter algorithm generates a series of samples over the function $sinc(x)=\frac{sin(x)}{x}$
 %(\text{if}~x \ne 0)$ and $sinc(x)=1 (\text{if}~x=0)$
 and modulates it with a Blackman window.
-This function has the property that $\int_{-\infty}^{\infty} sinc(x)dx = 1$.
-The Blackman window - modulated output of this routine preserves this same property for most of the time, making it possible to check the output by computing the sum and comparing it to 1.
+It is checked using the invariant $\int_{-\infty}^{\infty} sinc(x)dx = 1$, which is preserved by the Blackman window in most cases.
 Computing the sum requires $O(n)$ additions, as compared to the $O(n)$ trigonometric function evaluations of the non-iterative FIR generation algorithm.
 %As shown below, the overhead of this checker is very small (less than 5\%).
 %Since this algorithm has only output and no input and therefore it does not need to have to be reinforced with input backup as other routines do.
 
-\vspace{-5pt}
+%\vspace{-5pt}
 \paragraph{Runge-Kutta PDE Solver (RK)}
-RK is a 4-th order Runge-Kutta method for solving Ordinary Differential Equations of the form $\frac{dy}{dx} = f(y, x)$.
-It advances the variable $x$ by steps of size $h$ and uses estimates of the derivative $\frac{dy}{dx}$ at each point $x$ to find the value of $y$ at the next point $x+h$.
-The implementation of RK in GSL uses adaptive step-size control where it simultaneously performs the RK method with two step sizes $h$ and $\frac{h}{2}$ (more precise).
-If the difference between the results obtained with the two step sizes are larger than a threshold $\tau$, the algorithm switches to the smaller step size to maintain accuracy and resumes.
+A 4-th order Runge-Kutta method for solving Ordinary Differential Equations of the form $\frac{dy}{dx} = f(y, x)$.
+It advances the variable $x$ by steps of size $h$ and computes the value $y$ at the next point $x+h$ using the derivative $\frac{dy}{dx}$ at $x$.
+The GSL implementation of RK uses adaptive step-size control where it simultaneously uses two step sizes $h$ and $\frac{h}{2}$ (more precise).
+If the difference between the two computations exceeds a threshold $\tau$, it switches to the smaller step size to maintain accuracy.% and resumes.
 If it is smaller than $\frac{\tau}{2}$, the algorithm switches to a larger step size.
-Because soft errors will usually cause significant differences between the two computations, the adaptive step size control algorithm is naturally fault tolerant.
-It will react to such errors by rolling back, temporarily increasing its step size and then reverting to the original step size when it observes that this is safe.
-As such, we utilize this algorithm to protect the computations within individual RK steps from soft errors.
-However, computations in user-provided function derivative functions are not checked since their invariants are notknown.
+Because soft faults usually cause significant differences between the two computations, the adaptive step size control algorithm naturally tolerates them by temporarily increasing its step size and then reverting to the original step size when it observes that this is safe.
+We thus protect the results of user-provided derivative functions within RK's steps using this algorithm.
+%However, computations in user-provided function derivative functions are not checked since their invariants are not known.
 
-%Experiment 2: Measure the error in the outputs of the algorithms with and without the algorithmic detectors.
-%First, show a probability distribution histogram for all the codes at one error rate, input size and algorithmic detection threshold.
-%Then show a summary of the entire space using the same heatmaps that we're using for final application results.
-%Put the input size and error rate on the y-axis and the detection threshold on the x-axis.
-%The color in each box should be the fraction of entries in the output that have an error of a given magnitude.
-%Show a separate plot for a few different magnitudes.
-
-% 4.1.2 is way too verbose, vague and not understandable
-%\subsubsection{Memory Fault Detection}
-%\label{sec:res_tech:err_det:mem}
-%
-%Detecting errors in application data structures requires checkers dedicated for this purpose.
-%Depending on the algorithm's properties different error detectors are appropriate.
-%In our work we considered the use of access protection hardware and replication of key data.
-%
-%Since modern systems use 64-bit addressing the range of values that can be assumed by a given pointer is much larger than the amount of memory that can ever be assigned to %an application.
-%This means that there is a very high probability that the corruption of a given pointer will cause it to point to an unallocated address.
-%Once this address is accessed the resulting violation will be detected by the memory protection hardware and communicated to the application via a Segmentation Fault or %Bus Error signal.
-%This mechanism is cheap but suffers from a long delay between an error and its detection.
-%
-%An alternative mechanism is to replicate key application variables and to compare the values of the replicas on each access to the variable.
-%While more expensive, this approach is effective if the number of key variables is small and the cost of rolling back computation is high.
-%
-%The low cost of hardware memory protection mechanisms means that they are deployed in protecting all our routines.
-%In contrast, replication is only used to protect the RK routine because it is more sensitive to soft errors than the others and the low detection latency provided by %replication ensures that any state corruptions are quickly corrected and have little impact on execution time.
-%This is important for resilience as well as performance since slowdowns due to frequent rollbacks increase the total number of errors the application is exposed to.
+\subsection{Detection and Tolerance of Pointer Corruptions}
+\label{sec:res_tech:pointers}
+In 64-bit address spaces corruptions of pointers almost always cause them to refer to un-allocated addresses.
+Any accesses via such pointers will be detected by the hardware and result in a Segmentation Fault or Bus Error.
+In applications that uses relatively few pointers we detect pointer errors by using these hardware checks and tolerate them via checkpoint-restart.
+This is done for ADDR and DRC.
+Applications that use pointer-based data structures may experience frequent rollbacks due to pointer errors.
+The cost of these rollbacks can be reduced by triplicating the pointers, which is done for Hattrick.
+The different pointer replicas can be checked on either some or all accesses.
+The former takes less time while the latter has a shorter detection latency.
+Every time an error is detected it is immediately corrected, with a rollback required only in the very rare case where multiple replicas are corrupted.
 
 \subsection{Recovery via Checkpoint-Restart and \\Replication}
 \label{sec:res_tech:cr}
-Since bit-flip errors may corrupt the address of a load or store instruction and a bit-flip in a 64-bit address can easily become an invalid value pointing to
-unallocated memory, a Segmentation Fault or Bus Error can be easily detected by the operating system.\\
-
-When errors are detected we employ a recovery method based on checkpoint-restart, where routine state is recorded at key locations and whenever an algorithmic or memory error is detected we roll back to that point in its execution.
-Rollbacks are implemented via the \texttt{sigsetjmp}/\texttt{siglongjmp} \cite{sigsetjmp:1997} routines.
+We tolerate detected but uncorrectable errors via checkpoint-restart.
+Each routine's state is recorded at key locations and we roll back to that execution point whenever an error is detected.
+Rollbacks are implemented via \texttt{sigsetjmp} and \texttt{siglongjmp}. %\cite{sigsetjmp:1997} routines.
 \texttt{sigsetjmp} records the application's execution state (registers and stack pointer) at the time of the checkpoint.
-On the detection of an error \texttt{siglongjmp} returns the application to the same execution point, unrolling any function calls between the checkpoint and the error detection.
-This method is useful for rolling back to checkpoints recorded in the same function or in a caller function.
+\texttt{siglongjmp} returns the application to the same execution point, unrolling any function calls between the checkpoint and the error detection.
+This light-weight method can roll back to checkpoints recorded in the same function or in a caller function.
 When execution returns to the \texttt{sigsetjmp} call the checkpointed portions of the routine's state are recovered and execution repeats.
-% The overhead of this API call is having to copy the processor state into memory, therefore installing them between computation-intensive method calls adds to negligible performance degradation.
-
-Checkpoint data is protected using two different mechanisms:
-Pointers and scalars are replicated such that the checkpoint contains two copies of each.
-Arrays of floating point numbers are protected via a block-checksum-based error correcting approach.
-By treating the input array as a matrix and comparing row sums and column sums of the submatrices of that matrix, it detects the existence of errors and fixes them.
-This algorithm takes an array of numbers as input, divides it into blocks of $N \times N$ numbers and for each block it computes and stores the row and column sums, which are used for recovery.
+Pointers and scalars within checkpoints are protected by duplicating them.
+Arrays of floating point numbers are protected via a block checksum-based error correction.
+Each array is treated as a matrix and divided into blocks of $N \times N$ numbers.
+A checksum is computed for each block's rows and columns and used to detect and correct any corrupted entries.
+(\greg{Is this a configurable parameter in our experiments?})
 
 The structure of each routine determines how checkpointing is deployed.
-All routines except RK are monolithic code blocks that take a relatively large amount of data as input, operate on it and then return.
-In contrast, RK takes in very little input and operates as a long sequence of steps, each of which involves a call to a user-provided derivative routine.
-As such, we checkpoint the state of non-RK routines immediately after the call to the routine and include in this checkpoint the routine's arguments and contents of the floating point input buffers.
-The one exception is the FIR routine, which takes no input and thus requires only the processor's state to be checkpointed.
-Because RK's checkpoints are very small and it is more sensitive to errors, it is checkpointed periodically during its execution with a fixed number of steps between checkpoints.
-As our experiments in \ref{sec:res_tech:eval:rk} show, the choice of the RK checkpoint period significantly affects its efficiency with longer periods suffering from more overhead due to rollbacks and short period spending more time checkpointing.
+For routines that take a relatively large amount of data as input and return the result we record a checkpoint at the routine's start, including its arguments and inputs, and roll back to this starting point on any error during the routine.
+%The one exception is the FIR routine, which takes no input and thus requires only the processor's state to be checkpointed.
+In contrast, RK in Hattrick takes in very little input and operates as a long sequence of steps, each of which involves a call to a user-provided derivative routine.
+Because RK's checkpoints are very small and it is more sensitive to errors, it is checkpointed periodically during its execution with a configurable number of steps between checkpoints.
+%Our experiments in \ref{sec:res_tech:eval:rk} show that the choice of the RK checkpoint period significantly affects its efficiency, with longer periods suffering from more overhead due to rollbacks and short period spending more time checkpointing.
+As RK checkpoint periods grow, the time spent in checkpointing shrinks while the cost of each rollback grows.
 
 \subsection{Evaluation of Subroutine Resilience}
 \label{sec:res_tech:eval}
 
+To analyze the performance and resilience properties the key routines in ADDR, DRC and Hattrick we conducted a comprehensive fault injection campaign where we employed the above resilience techniques with each routine, as applicable,
+We used fault rates between 1e-11 and 1e-8 errors per clock cycle \greg{(is this correct)}, probing each application's behavior as it was impacted by either one or multiple errors in a single run.
+Our experiments span a wide range of input sizes and a broad range of resilience mechanism configurations, with 100 (\greg{???}) runs for each combination of application, input, fault rate and resilience configuration.
+Table~\ref{tbl:configs} specifies the techniques applied to each routine and its configuration space.
+\begin{table}
+  \begin{tabular}{|c|c|c|c|c|}
+    \hline
+    \multicolumn{2}{c}{Routine}          & Algorithmic Detector             & Checkpointing         & Pointer Replication  \\
+    \hline
+    \multirow{4}{*}{ADDR}      & MM   & Linear encoding                     & Inputs                & No \\
+                               & SYRK & Detection Thresholds:               & Inputs                & No \\
+                               & MVM  & 1e-4 to 1e-7                        & Inputs                & No \\
+                               & CD   &                                     & Inputs                & No \\
+    \hline
+    \multirow{2}{*}{FRC}       & FFT  & Parseval's theorem.                 & Inputs                & No \\
+                               & FIR  & Sum conservation.                   & Inputs                & No \\
+                               &      & Detection Thresholds: 1e-6 to 3e-8. &                            \\
+    \hline
+    \multirow{3}{*}{Hattrick}  & \multirow{3}{*}{RK} & \multirow{3}{*}{Variable step-size} & Periodic Timesteps    & None  \\
+                               &      &                                   & Period:  1, 1e3, 1e5 & All pointers checked at one code location \\
+                               &      &                                   &                       & All pointers checked on each use \\
+    \hline
+  \end{tabular}
+  \caption{The resilience techniques applied to each major routine of each application.}
+  \label{tbl:configs}
+\end{table}
 
+Section~\ref{sec:res_tech:eval:perf} summarizes the impact of faults on routine execution time, while Section~\ref{sec:res_tech:eval:accuracy} focuses on the accuracy of routine outputs.
+Our experiments were performed on compute nodes with two 2.33 GHz dual-core Xeon E5345 processors with 4GB Ram and RHEL 4 Linux.
 
-\subsubsection{Linear Algebra and Integer Routines}
-\label{sec:res_tech:eval:la_int}
-
-This section evaluates the routines MMM, MVM, SYRK, CD, FFT and FIR.
-
-\paragraph{Overheads}
-%\label{sec:res_tech:eval:ovhd}
-
-%\begin{figure}[ht!]
-%\centering
-%\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp1_linalg}
-%\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp1_fft}
-%\caption{Overhead of resilience techniques when errors are not injected}
-%\label{fig:routine_detect_ovhd}
-%\end{figure}
-
-%Experiment 1: Measure performance degradation of using error detectors as input sizes increase. In case of RK if we can run a version that doesn't do the multiple step sizes, do so but if this is difficult then don't worry about it.
-We evaluate the costs of the above algorithmic error checkers by measuring their costs and effectiveness when running at different error rates on different types of inputs.
-%Figure \ref{fig:routine_detect_ovhd} measures the overheads of employing the algorithmic error detectors when no errors are injected,
-We report the averages of 100 runs.
-The linear algebra routines were executed on $n \times n$ square matrices where $n$ varies from 100 to 1000.
-FFT ran on inputs vectors with 128K to 16M entries and FIR on window widths of 1M to 8M.
-RK ran on an integral with intervals $[0, t_1]$ where $t_1 \in \{10, 15, 20, 25, 30, 50, 75, 100\}$.
-Its ODE system is a second-order nonlinear Van der Pol oscillator equation.
-Our experiments show that the cost of algorithmic error detection is low (< 10\%) for small and drops with increasing input sizes.
+\subsubsection{Performance Impact}
+\label{sec:res_tech:eval:perf}
 
 \begin{figure}[ht!]
 %\vspace{-20pt}
@@ -337,20 +338,72 @@ Our experiments show that the cost of algorithmic error detection is low (< 10\%
 \label{fig:routine_all_ovhd}
 \end{figure}
 
-Figure~\ref{fig:routine_all_ovhd} shows in the bars the overhead of all resilience techniques with no fault injection, separating into overheads due to algorithmic error detection, the checkpointing of routine inputs as well as checkpointing processor state.
-The data shows that checkpointing the input of routines consumes more time than algorithmic error detection and that the cost of checkpointing processor state is negligible.
-In all cases, these overheads decrease as the input set size increases.
+Figure~\ref{fig:routine_all_ovhd} reports the relative increase in running time of MM, SYRK, MVM, CD, FFT and FIR as their input sizes are varied and no faults are injected.
+MM, SYRK, MVM and CD were executed on square matrixes.
+%The linear algebra routines were executed on $n \times n$ square matrices where $n$ varies from 100 to 1000.
+%FFT ran on inputs vectors with 128K to 16M entries and FIR on window widths of 1M to 8M.
+The experiments show that algorithmic error detection has a low overhead ($<10\%$) that shrinks with increasing input sizes.
+The cost of checkpointing inputs is typically somewhat higher but also shrinks with increasing input size.
+Checkpointing processor state (\texttt{sigsetjmp}) has a negligible cost.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\paragraph{Output Accuracy}
-%\label{sec:res_tech:eval:accu}
+\greg{Where is data for RK}
+%RK ran on an integral with intervals $[0, t_1]$ where $t_1 \in \{10, 15, 20, 25, 30, 50, 75, 100\}$.
+%Its ODE system is a second-order nonlinear Van der Pol oscillator equation.
 
 \begin{figure}[ht!]
 \centering
-\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp2_1_Example.png}
-\caption{Error magnitude histogram showing the effectiveness of the error detector}
-\label{fig:algo_err_dist}
+\includegraphics[width=1.00\columnwidth]{figs/4_1_2_Exp2_Expected_Running_Time_Needed.png}
+\caption{Overhead of resilience techniques for RK when errors are injected}
+\label{fig:rk_routine_exp_exec}
 \end{figure}
+
+When errors are injected there is an additional cost of rolling the computation back due to error detections.
+Figure~\ref{fig:rk_routine_exp_exec} shows the effect on RK (similar for other routines (\greg{is this true})), when between 0 and 10 errors per run are injected and RK is protected using Checkpointing, Replication or both.
+(\greg{What type of replication was used and what checkpointing period?})
+The data shows that the best configuration varies with the number of errors.
+\texttt{NoRe\_NoCkpt} (no resilience) is the most efficient option when only a few errors are injected but above 2.5 errors per run this configuration is aborted and restarted so often that resilience techniques are needed to achieve the best performance.
+Replication without checkpointing is more effective than checkpointing without replication and for large error counts (>8 per run), both must be used.
+
+\subsubsection{Result Accuracy}
+\label{sec:res_tech:eval:accuracy}
+
+Even though an application may complete its execution, errors injected into its numeric state may produce incorrect output.
+In each experimental configuration we measured the distribution of errors in application output, measured as the Root Mean Square (RMS) Error: $\sqrt{\sigma_i (x_i-x'_i)^2}/n$, where $x_i$ is the value of output element $i$ in a fault-free run, $x'_i$ its value in a fault-injected run and $n$ is the total number of output elements (e.g. size of the output matrix).
+
+Figure~\ref{fig:algo_err_dist} shows a sample of our results, focusing on the linear algebra routines (restarted upto 5 times after an error detection).
+It presents the probability distribution of the routine's results having errors of various magnitudes.
+Each tile corresponds to a different routine (vertical order) and different algorithmic error detection threshold used (horizontal order).
+Table~\ref{fig:algo_err_heatmap} specifies the exact threshold values used.
+Within each tile the vertical axis corresponds different error rates.
+The axis numbers are normalized to the execution time of the configuration with no resilience techniques (\greg{errors injected or not?}) and specify the average number of errors injected during this time period at this rate.
+The horizontal axis corresponds to the error magnitude ranging from 1e-14 to 1e-1.
+For each error injection count and output error magnitude we report the probability of the output having error of \emph{larger than} this magnitude as a different shade of gray, with darker shades indicating higher probabilities.
+Thus, darker plots indicate that error injections make larger output errors more likely and errors $\ge$ a smaller magnitude are always less likely than errors $\ge$ a larger one (shades grow lighter from left to right).
+
+As error count increases the probability of larger output errors rises.
+Further, tighter (smaller) error detection thresholds reduce this probability.
+Error distributions vary widely, with MM being most resilient to errors (the probability of having large errors is low) and CD least.
+These experiments guide the choice of how each routine's resilience technique is configured to meet user-specified accuracy bounds.
+
+Figures~\ref{fig:algo_err_dist} show the fraction of entries in the outputs of each routine (y-axis) that have an error of a given magnitude (x-axis) as error magnitudes span from 1e-14 to 1e-4.
+This figure is a focused view on few representative cases (each routine run on a single input size and error injection rate) across different resilience configurations: no error detection as well as three error detection thresholds.
+As the error magnitude increases the fraction of output entries with errors of that magnitude drops.
+Importantly, the fraction of erroneous entries is reduced at all magnitudes as a result of error detection and restart.
+Further, this reduction is more significant as the detection threshold shrinks since smaller magnitude errors are detected.
+
+Figure~\ref{fig:algo_err_heatmap} shows the same information but for all experimental configurations: (i) input sizes as above (ii) error injection rates of 1e-7 to 1e-10.
+The graph is a grid, with results for different routines listed vertically and different resilience configurations (no detection and the different detection thresholds shown in the table at the bottom) listed horizontally.
+The graph for each routine and resilience configuration presents the curves from Figure~\ref{fig:algo_err_dist} as a heatmap.
+The y-axis shows different routine input sizes and error injection rates, sorted according to the average number of error injections per non-fault injected run, in decreasing order from top to bottom.
+The x-axis shows the different error magnitudes and the shade of each point is the fraction of the routine's entries that have a given error magnitude, with darker shades indicating more such entries (each shade corresponds to a fraction that is some power of 10).
+Thus, each row of Figure~\ref{fig:algo_err_heatmap} represents the same information as each curve in Figure~\ref{fig:algo_err_dist}, with the shades of the squares representing the same information as the height of the line's points.
+
+%\begin{figure}[ht!]
+%\centering
+%\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp2_1_Example.png}
+%\caption{Error magnitude histogram showing the effectiveness of the error detector}
+%\label{fig:algo_err_dist}
+%\end{figure}
 
 \begin{figure}[ht!]
 \centering
@@ -377,177 +430,43 @@ SYRK & 1e-06 & 1e-07 & 1e-08 \\
 \label{fig:algo_err_heatmap}
 \end{figure}
 
-We now evaluate the effectiveness of our algorithmic detectors when errors are injected.
-In each case when an error is detected by our algorithmic detectors the routine's execution would restart from the beginning upto five restarts.
-Figures~\ref{fig:algo_err_dist} show the fraction of entries in the outputs of each routine (y-axis) that have an error of a given magnitude (x-axis) as error magnitudes span from 1e-14 to 1e-4.
-This figure is a focused view on few representative cases (each routine run on a single input size and error injection rate) across different resilience configurations: no error detection as well as three error detection thresholds.
-As the error magnitude increases the fraction of output entries with errors of that magnitude drops.
-Importantly, the fraction of erroneous entries is reduced at all magnitudes as a result of error detection and restart.
-Further, this reduction is more significant as the detection threshold shrinks since smaller magnitude errors are detected.
-
-Figure~\ref{fig:algo_err_heatmap} shows the same information but for all experimental configurations: (i) input sizes as above (ii) error injection rates of 1e-7 to 1e-10.
-The graph is a grid, with results for different routines listed vertically and different resilience configurations (no detection and the different detection thresholds shown in the table at the bottom) listed horizontally.
-The graph for each routine and resilience configuration presents the curves from Figure~\ref{fig:algo_err_dist} as a heatmap.
-The y-axis shows different routine input sizes and error injection rates, sorted according to the average number of error injections per non-fault injected run, in decreasing order from top to bottom.
-The x-axis shows the different error magnitudes and the shade of each point is the fraction of the routine's entries that have a given error magnitude, with darker shades indicating more such entries (each shade corresponds to a fraction that is some power of 10).
-Thus, each row of Figure~\ref{fig:algo_err_heatmap} represents the same information as each curve in Figure~\ref{fig:algo_err_dist}, with the shades of the squares representing the same information as the height of the line's points.
-
-The data shows that in general as the error detection threshold drops there are fewer entries that have an error of a given magnitude.
-However, there are exceptions where the fraction of erroneous entries rises as the detection threshold shrinks (e.g. MMM and FT between NoFT and Threshold 1).
-This is caused by the fact that we restart each routine on an error detection, which can causes the routine's execution to be exposed to additional error injections.
-As the threshold is further tightened the amount of error in the output shrinks, indicating that error detection is ultimately effective if it is configured to be sufficiently accurate.
-Another phenomenon that is observed is that as the number of errors injected in a given run decreases the degree of error in routine outputs also generally decreases.
-However, this is not a fully consistent phenomenon, with some configurations that have more error injections being less vulnerable than others with a higher number of injections because the former had a higher injection rate but the latter a larger input size.
-This indicates that while the number of injected errors is strongly correlated with overall application vulnerability to errors, other properties such as input size also play a role.
-
-%We dont have the following figure and there is no time to generate it.
-%Figure~\ref{fig:algo_err_heatmap} shows the same information across the entire experimental space.
-%The y-axis includes all algorithms, input sizes and error rates.
-%The x-axis includes several segments for different degrees of error checking: none, as well as checking with thresholds \greg{???} \sui{1e-06, 1e-07 and 1e-08}. In each segment the x-axis spans over error magnitudes from \greg{???} \sui{1e-14} to \greg{???} \sui{1e-01}.
-%The box associated with each combination of the four parameters the figure indicates the fraction of outputs that have an error of this magnitude by the shade of gray it is colored with, as indicated in the legend.
-%The data shows that the accurate of application results is directly related to the number of errors that impact a given application run, rather than their rate.
-%Further, it shows that a reduction of detection threshold is consistently effective at reducing the fraction of errors in each algorithm's output.
-%However, the effectiveness of algorithmic checks has a limit, with CD and FFT showing moderate error vulnerability even at threshold 1e-8.
-%\sui{(Rephrase) However, the algorithmic checkers cannot cover 100\% of the errors for CD, FFT and FIR, mainly fixing errors of large magnitudes which turned out to be effective in real applications (refer to the imperfect run rate plot for DRC.)}
-%MM, MV and SYRK are significantly less vulnerable across the full range of error magnitudes.
-%\sui{(Rephrase) The errors shown in MM, MV and SYRK are much more noticably fixed.}
-%\greg{should reference vulnerability numbers more specifically}
-
-%Experiment 3: Measure the fraction fraction of routine runs that are interrupted by the detection of an error.
-%Display this information via the same heatmaps as above.
-
-%\greg{For each experiment we need to include a discussion of what it means for how these checkers behave within the full-application runs.}
-
-%\sui{The checkers have performed well in reducing erroneous results from the application outputs. Checkers for linear algebra are useful in removing errors from Lasso, as one could see from the results.}
-
-%Those checkers can detect errors greater than a certain numeric threshold in those computations (determined by the user-defined error checker threshold). Once an error beyond the threshold has occurred, a re-calculation would be initiated.
-%\greg{You need to be more specific. Each routine produces a result, your checker produces a result. How are these results compared and how is the threshold used to determine if there is an error or not.}
-
-%In the following sections we would show that the error tolerance could not be arbitrarily small in order to be helpful in providing fault-tolerance when we take into account the checker itself may be unreliable since it's also vulnerable to soft errors.
-%\greg{How is this shown? We certainly do show tighter detection tolerances cause longer executions, which cause more vulnerability. However, this is not the same as what you've just described}
-
-%Although checkers are faster than the routines they protect, the unreliability of those checkers and the ensuing ``false alarms'' might trigger redundant re-calculations that are unnecessary, causing the application to run for much longer. This is specially true with an overly small error detection threshold. On the other hand, an overly loose detection threshold may fail to detect data corruption in output files. The results would be discussed in the results section.
-
-\subsubsection{Runge-Kutta}
-\label{sec:res_tech:eval:rk}
-
-The difference between RK routine and others motivates special discussion of its resilience properties.
-Since RK's adaptive step size mechanism is already effective at tolerating many numerical errors we used it as the error detector for this routine without adjusting its tolerance parameters.
-The configurable portions of the RK resilience method are thus the choice of checkpointing and/or replication strategy.
-Configurations \texttt{Ckpt} and \texttt{NoChkpt} denote whether checkpointing was used and configurations \texttt{Re} and \texttt{NoRe} denote whether replication was used.
-We consider checkpointing periods equal to 1, $10^2$, $10^3$, $10^4$ and $10^5$ calls to the RK stepping function.
-Further, we consider the following replication configurations: (i) ``No replication'', (ii) `Medium replication'', where routine pointers are replicated but the replicas of each pointer are compared at a single code location where it is used, and (iii) ``Maximum replication'', where the comparison is performed on every pointer use.
-
-\paragraph{Overheads}
-%\label{sec:res_tech:eval:ovhd}
-
-%\begin{figure}[ht!]
-%%\vspace{-20pt}
-%\centering
-%\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Overall_Breakdown_RK4}
-%%\vspace{-5pt}
-%\caption{Overhead of resilience techniques for RK when errors are not injected}
-%\label{fig:rk_routine_detect_ovhd}
-%\end{figure}
-
-%Figure~\ref{fig:rk_routine_detect_ovhd} shows the overhead of employing each of the four RK resilience techniques when no errors are injected. We use here the same format as in figure\ref{fig:routine_all_ovhd}.
-%%MARC: I decided to remove the above figure because it doesnt make sense to me and the same information is displayed in the following figure with more readibility.
-
-\begin{figure}[ht!]
-\centering
-\includegraphics[width=1.00\columnwidth]{figs/4_1_2_Exp2_Expected_Running_Time_Needed.png}
-\caption{Overhead of resilience techniques for RK when errors are injected}
-\label{fig:rk_routine_exp_exec}
-\end{figure}
-
-Figure~\ref{fig:rk_routine_exp_exec} shows the RK's overhead when between 0 and 10 errors per run are injected.%, using the same format as Figure~\ref{fig:routine_exp_exec}.
-Although the \texttt{NoRe\_NoCkpt} configuration has the lowest overhead when only a few errors are injected (low error rate or small execution times), as the number of errors per run increases this configuration quickly becomes extremely slow because an error is detected in almost every run.
-Since each such detection requires a restart of the routine, at higher error rates this causes RK to restart many times before it completes.
-In contrast, while the other configurations have a higher overhead for a few errors per run, their execution time scales much better with increasing error rates, making them significantly more practical.
-In particular, the overheads of the configurations with more replication and checkpointing scale better as the number of errors per run increase.
-By varying the checkpointing interval and the degree to which various RK pointers are replicated it is possible to achieve a wide range of design points that provide the best performance at various error rates.
-
-\paragraph{Output Accuracy}
-%\label{sec:res_tech:eval:accu}
-
-\begin{figure}[ht!]
-\centering
-\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp2_2_Heatmap_Error_ConfSpace_RK4.png}
-\caption{Error magnitude histogram of the entire configuration space of RK}
-\label{fig:rt_algo_err_heatmap}
-\end{figure}
-
-\begin{figure}[ht!]
-\centering
-\includegraphics[width=1.00\columnwidth]{figs/4_1_2_Exp2_Effectiveness.png}
-\caption{Fraction of RK runs that achieve low error (smaller than 1e-7).}
-\label{fig:rk_effectiveness}
-\end{figure}
-
-Figure~\ref{fig:rt_algo_err_heatmap} shows the fraction of errors in RK's outputs for various checkpointing and replication configurations, in the same format and using the same experimental setup as in Figure~\ref{fig:algo_err_heatmap}.
-It shows that while the use replication reduces the amount of error in RK's outputs, increased checkpointing doesn't have a significant effect on this accuracy metric.
-Figure~\ref{fig:rk_effectiveness} evaluates the effect of checkpointing on accuracy from another perspective: the fraction of RK runs where the root-mean-squared error of the output vector is below 1e-7 (y-axis), relative to the number of error injections per run (x-axis).
-It shows that RK configurations with higher level of resilience and in particular, more frequent checkpoints, are able to achieve this accuracy target more frequently.
-This is primarily because by avoiding frequent rollbacks due to crashes these techniques reduce the total number of errors that are injected into the application run, which also reduces the probability that one such error will be missed by RK's algorithmic error detector.
-As with overhead, the choice of checkpointing interval and replication degree make it possible to choose a wide range accuracy levels and probabilities that these targets will be satisfied.
-
-%
-%???\sui{the effectiveness of the error handlers and the error checkers. Note that the graph shows fault injection experiments at various rates (defined by errors per run).}
-%
-%\sui{There are roughly three types of fault rates: 1) very high fault rates (more than tens of errors per run), under which the application would barely complete running; 2) medium fault rates (1 to 10 errors per run), where the rate that the application completes running is very sensitive to the fault rate (because for a non-resilient application, just one error is enough to cause a segmentation fault and abort the application) and 3) low error rates, smaller than 1 errors per run. The effectiveness of the fault detector is most visible at fault rates from under 1 faults per run to several errors per run, which is visible from the histograms that the vertical bars indicating a run with algorithmic detectors is generally brighter, therefore less erroneous; when the error rates goes beyond 10 errors per run, the effectiveness of the signal handlers become more noticeable, rising the chance the application would complete.}
-%
-%\sui{At higher error rates, the signal handlers enable more runs to complete as well as allowing erroneous results to go into the output. More erroneous results are allowed into the final output by the signal handler than the erroneous intermediate corrected by the algorithmic checker. That is why from the histograms, some vertical bars indicating fault-tolerant runs at a very high error rate would look darker.}
-%
-%
-%
-%
-%
-%
-%Errors that do not cause the application to access an invalid memory location are detected by replicating key pointers and loop iteration variables.
-%The Hattrick application uses a high-accuracy ODE solver that is capable of estimating errors and detecting and reducing errors to a certain level adaptively.
-%Therefore we would only focus on the application's vulnerability to pointer and index corruptions.
-%Replicating critical variables (pointers and indices) and leveraging Byzantine fault tolerance and correcting those pointers and indices during run-time would raise the applications' resistance to soft errors \sui{and increase the chance this application would output correct results.}
-%
-%\sui{Unlike the numerical and FFT routines used in the other two applications, the ODE solver has an stepping function called on the evaluation(s) of each integration step (GSL performs two evaluations per timestep in order to estimate integration error and perform adaptive step size control), which is called much more frequently, on the magnitude of millions of times during the lifetime of the application. Contrarily, the linear algebra routines are only called less than a hundred times during the execution of Lasso with a 10x input, and the FFT routines are called only several hundred times during the execution of DRC with a 30x input. Both are moderate-sized inputs in our experiments.}
-%
-%\greg{Need to explain why we only do this for Hattrick.} \sui{The checkpointing scheme used here has overhead of having to set signal handlers and perform up-to-date checksum computation of critical data structures. The more often the routines are called, the more frequent the critical data structures need be kept up-to-date, therefore this overhead is larger (non-trivial compated to that for FFT and linear algebra) for a frequently called routine like the integrator. This overhead makes the fault tolerance technique less efficient as it was in linear algebra and FFT routines, bringing it to the same ballpark as the expensive pointer replciation technique. Although it is possible to reduce the frequency of updating the checkpoints, it would also reduce the effectiveness of this method sharply.}
-%
-%\sui{
-%The other reason is, pointer replication performs a better job at maintaining the chance the routine generates correct results (See figure \ref{fig:rk4_eff_ovhd}). As mentioned before, the RK4 integrator does not have an effective checker that takes its output and tells the user whether the output is correct. As the user can't know whether a re-run is necessary and the user should be concerned by the expected time by which s/he can expect a correct output. Therefore, a higher chance of producing correct results would lower the expected cost the user would have to pay to get the correct result despite the overhead. The method of computing this expected running time is described in greater detail in section \ref{sec:eval:perf}'s Markov Model. From \ref{fig:rk4_eff_ovhd} one could see the ratio of perfect runs out of all runs (that are completed or incomplete) and the number of faults per run forms an almost linear relationship. The linear regression model is used to evaluate the position of the guide points needed for the following experiments.
-%}
-%
-%\sui{Refer to Figure \ref{fig:rk4_eff_ovhd} one could see the number of expected running time of different configurations if one wants to get a correct output from the application in a faulty environments. As the number of faults injected per run increases, the expected running time of the original, non-fault-tolerant application increases at a much faster rate than the other fault-tolerant counterparts. In real life scientific applications that run much longer, it's likely that a fault could hit the application several times before it completes. In such situations, the replication-only resilience technology produces the least expected number of runs needed to get a correct answer.}
-%
-%To determine a replication strategy we have to determine which variables to replicate and how many replicas to use for replicating them. The following two subsections would be focused on these problems.
-%\greg{The report spends a lot of space talking about this but in the end the conclusion is that we just a pick a few options and evaluate them experimentally. How much space should we devote to this discussion.}
-%
-%Experiment 2: Measure the effectiveness and performance costs of replication. Need to explain why we don't use it for Lasso and DRC.
 \section{Evaluation of Resilience Methodology in Applications}
 \label{sec:eval}
 
-Having evaluated the resilience properties of the individual application routines and resilience techniques we now consider our three target applications ADDR, Hattrick and DRC.
-Section~\ref{sec:eval:perf} reports on the impact of errors and resilience techniques on application performance. Section~\ref{sec:eval:acc} describes the distribution of errors in the results of these applications.
-These results are based on a fault injection campaign that includes a range of fault injection rates, input sizes and configurations of resilience mechanisms, with 100 application runs for each combination of parameters.
-This corresponds to a total of 66,100 fault injection experiments for ADDR (4-process parallel), 43,200 for DRC (sequential), 102,000 for Hattrick (sequential).
-Our experiments were performed on compute nodes with two 2.33 GHz dual-core Xeon E5345 processors with 4GB Ram and RHEL 4 OS.
+To effectively and efficiently protect applications from soft errors we must consider each application's and routine's unique resilience needs as well as the user's accuracy requirements, the error rate of the hardware and the scale at which the application run (total execution time and number of compute cores).
+We now build upon the analysis of individual routines summarized in Section~\ref{sec:res_tech:eval} to show how our methodology can be applied in the context of large-scale HPC applications.
+The most accurate way to configure a large-scale application run on a given platform with a given input is to conduct a thorough fault injection campaign at this scale, injecting large numbers of errors into various code regions and processors.
+Since this would require thousands of times more compute hours than a single large-scale application run, the only practical option is to extrapolate from small-scale application executions to large-scale ones.
+This case study addresses this challenge by modeling large-scale instances of linear solver, signal processing and n-body simulation applications as combinations of small instances of these applications, that can indeed be comprehensively studied via a fault injection campaign.
 
-A given application run may terminate successfully or crash due to an unrecoverable error.
-Unrecoverable errors occur when there is a segmentation fault in code outside our protected routines or if five rollbacks of a routine have been observed in a given run since such repeated rollbacks almost always indicate that the corruption in application state cannot be repaired.
-Since we assume that the user needs application results regardless of the error rate, if the application crashes it is restarted from the beginning as many times as needed for it to complete.
+This section reports the anticipated behavior of large-scale (1 million CPU-hours) runs of applications in these three domains.
+We begin by describing our methodology to extrapolate the fault injection results for individual small-scale runs of ADDR, DRC and Hattrick to large-scale runs that connect many small-scale instances in various parallel and sequential dependence patterns.
+We then apply analysis methodology described in Section~\ref{sec:res_tech:eval} to each of the three applications on various small-scale inputs to relate the various hardware error rate and the configurations of their resilience mechanisms to the resulting overhead and distribution of output errors.
 
-To evaluate the behavior of these applications in a broad range of error environments we consider several error injection rates.
-For reference, assuming a typical FIT of 100-100,000 for individual processing cores (FIT = failure in one billion hours of operation and this range has been experimentally observed for commodity electronics~\cite{mem_errors:2010, dram_error:2009}), an HPC system with one million cores will experience .1-100 errors per hour, which is equivalent to 3e-11 - 3e-14 errors per processor cycle on a 1Ghz processor. \sui{Hence, the experiments are referred to as ``accelerated experiments.''}
-The range of error injection rates used used in our experiments were chosen such that (i) on average one or more errors were injected in the executions of our target applications and (ii) at least some application runs completed without crashing.
-Results for error rates that induce fewer than one error per run were extrapolated from our experiments with higher error rates \sui{as described in \ref{sec:eval:extrapolation}}.
-This was done by considering only the runs where exactly one error was injected and trivially scaling the results to correspond to 1 in every $n$ runs being injected with an error while remaining $n-1$ runs complete with no injection.\\
+The results of these experiments are used to select the most efficient configuration of the resilience mechanisms for each given hardware error rate and user accuracy requirement, focusing on the specific use-case of application runs that use 1 million CPU hours.
+User accuracy requirements are expressed as a cap on the RMS error an application output may have and a bound on the probability with which this bound may be violated.
+Since users rarely have a clear idea of how much RMS error is acceptable, we provide an alternative way to specify such bounds in terms of the amount of uncertainty about the application's inputs that would have generated a given amount of RMS difference between outputs.
+By expressing the effects of soft faults using the same concepts as measurement error, this representation makes it easier to select an appropriate output accuracy and predict the effects of a given selection on other software that reads the application's output.
+
 
 \subsection{Extrapolation Model}
 \label{sec:eval:extrapolation}
-\sui{
-This section explains our modelling of massively parallel and long-running applications with the experiments mentioned in page \pageref{sec:eval}, which in nature
-are accelerated experiments. We model larger scale experiments by extrapolating our experiments in the following ways:\\
-}
 
+Figure~\ref{fig:extrapolations} illustrates how individual runs of ADDR, DRC and Hattrick are combined to model large-scale instances of linear solver, signal processing and n-body simulation applications.
+We observe that most large-scale applications can be described simple dependence graphs of identical tasks, such as the execution of a single time-step calculation in a single point in space.
+The shape of the graph controls its total execution time and the way errors propagate.
+Our model focuses on two major types of task graphs: parallel reduction and sequential chaining.
+
+In the parallel reduction model all tasks run in parallel and their results are reduced into a common aggregate.
+As such, the total execution time of the graph is the maximum execution time of all the tasks (approximated as the top 10 percentile as discussed below).
+The RMS error of the aggregate is the combination of the RMS errors of the individual task outputs, which depends on the exact aggregation operation used.
+Since averaging is a very common but not universal aggregation operation, in reductions we model the RMS error of the aggregate as the average of the RMS errors of individual tasks, which is an over-estimate of the RMS errors of their average.
+In the sequential chaining model each task's output is used by the next task, forcing them to run in sequence.
+The total execution time of task chains is thus the sum of the execution times of the individual tasks.
+Tasks may either amplify or dampen errors in their inputs (output errors may be larger or smaller, respectively).
+Given the complexity of dampening and amplification behavior that may occur in practice our model assumes that no dampening or amplification occurs and the error at the end of a task chain is equal to the maximum error of any task within the chain (also approximated as the top 10 percentile).
+
+\greg{TODO: In addition to pure parallel and pure sequential dependence graphs we also considered sequences of parallel reductions, with the number of tasks in a given reduction equal to the number of reduction steps.}
 
 \begin{figure}[ht!]
 \centering
@@ -556,55 +475,51 @@ are accelerated experiments. We model larger scale experiments by extrapolating 
 \label{fig:extrapolations}
 \end{figure}
 
-\begin{figure}[ht!]
-\centering
-\begin{tabular}{|p{1.0in}|p{2.0in}|}
-\hline
- Model Type & Description \\
-\hline
-Accelerated Experiment & FIT > 1e+7, containing > 1e10 dynamic instructions, running on 1 node, wall time < 10 min \\
-\hline
-Serial Extrapolation by factor N & FIT > $\frac{1e+7}{N}$, containing > $N \cdot 1e10$ dynamic instructions, running on < 1 node \\
-\hline
-Parallel Extrapolation by factor N & FIT > $\frac{1e+7}{N}$, containing > $N \cdot 1e10$ dynamic instructions, running on N nodes \\
-\hline
-\end{tabular}
-\end{figure}
+We model large-scale linear solvers as dependence graphs of individual runs of ADDR, signal processing applications in terms of runs of DRC and n-body simulations in terms of runs of Hattrick.
+Our experiments were performed on compute nodes with two 2.33 GHz dual-core Xeon E5345 processors with 4GB Ram and RHEL 4 Linux.
+We run ADDR, DRC and Hattrick no fault injection on the inputs described in Section~\ref{sec:apps} and configuration options listed in Table~\ref{tbl:configs} to measure their fault-free execution time.
+We also executed each configuration while injecting faults at rates to produce one or more injections per run.% (since different configurations have different execution times, the number of injections per run varies).
+\greg{Since some runs
+In each accelerated fault injection experiment, we ran each application configuration to completion, recording whether it completed and if so, the magnitude of the
+	error.
+	We calculate the execution time of each configuration, accounting for restarting the application in cases of unrecoverable failures via the formula $\frac{t_c}{1-p_f}$, where $t_c$ is the average completion time of such runs and $p_f$ is the probability of an unrecoverable failure.}
+For each combination of application, input and configuration we performed 100 fault injections, for a total of 66,100 fault injection experiments for ADDR (4-process parallel runs), 43,200 for DRC (sequential runs), 102,000 for Hattrick (sequential runs).
+For reference, assuming a typical FIT of 100-100,000 for individual processing cores (FIT = failure in one billion hours of operation and this range has been experimentally observed for commodity electronics~\cite{mem_errors:2010, dram_error:2009}), an HPC system with one million cores will experience .1-100 errors per hour, which is equivalent to 3e-11 - 3e-14 errors per processor cycle on a 1Ghz processor.
+To make our analysis comprehensive we consider error rates between 1e-10 and 1e-16 (\greg{is this right?}).
 
-\sui{
-There is 1 instance drawn from the accelerated tests in both serial and parallel extrapolation models. Each time one instance is sampled
-from the accelerated tests, it is combined with N-1 fault-free instances to become a large serial or parallel execution. The value of N is determined
-by each fault rate that needs be extrapolated to. For example, a value N=10000 is equivalent to extrapolating from 1e+7 FIT to 1e+3 FIT.
-In order to determine the magnitude of output errors from the combined executions, we make the following assumptions to the extrapolation models
-in order to simplify our analysis:
-}
+We model the RMS error and expected execution time of a task graph that consists of executions of a given application, input and configuration combination (denoted a ``task''), on a system with a given per-processor error rate as follows.
+Let $N$ be the total number of task runs needed to reach 1 million CPU hours and let $NF$ be the number of runs that are expected to have faults injected into them at the given error rate.
+We sample $NF$ runs from the 100 fault injection runs conducted for the given configuration with replacement.
+Replacement is used since faults are memory-less, they do not depend on prior faults.
+As such, $NF$ may be larger than 100 without biasing the statistical results since the 100 runs are representative of the overall population.
+We then add $N-NF$ copies of the non-fault injected variant of the given task to produce a complete sample of a large-scale application execution.
+Finally, we compute the model application's metrics as:
+\begin{eqnarray}
+ExecTime_{Parallel} &= \text{Top 10 percentile of} ExecTime \text{of tasks in sample}\\
+RMSE_{Parallel} &= \text{Average} ExecTime \text{of tasks in sample}\\
+ExecTime_{Sequence} & = \text{Average} ExecTime \text{of tasks in sample}\\
+RMSE_{Sequence} & = \text{Top 10 percentile of} ExecTime \text{of tasks in sample}
+\end{eqnarray}
+This procedure is repeated \greg{???} times to compute the expected value of the quantities.
+We also use these samples to compute the 95\% confidence interval of the expected value (range where 95\% of the samples are located).
 
-\sui{
-\begin{itemize}
-\item{
-The magnitude of output errors in a combined serial execution is that of the accelerated instance with the largest output error magnitude.
-Analysis of the output error magnitude is in \ref{sec:eval:errorsensitivity}.\\
-$RMSD_{serial} = max_{i=1}^{N} (RMSD_n)$}
-\item{The magnitude of output errors in a combined parallel execution is the error magnitude of the average of all outputs.
-This reflects a classic reducing access pattern frequently seen in parallel programs. Since all instances except the first one
-are fault-less, the error magnitude, and the RMSD, of the combined instance would effectively be shrunk by a factor of N.\\
-$RMSD_{parallel} = \sum_{i=1}^{N}{RMSD_n}/N$
-}
-\item{The running time of a combined serial execution is the sum of every individual instance.}
-\item{The running time of a combined parallel execution is the running of the longest individual instance. }
-\item{At least 1 of the individual instances is injected with one error.}
-\end{itemize}
-}
+The reason why we use the top 10 percentile rather than the maximum is because the maximum metric is extremely sensitive to sampling.
+Since there is no bound in the difference between the maximum of a given sample and the overall maximum, the only way to estimate it accurately is to sample the entire space of possibilities, which is prohibitively expensive.
+In contrast, metrics such as average and percentiles are robust against such effects and can be accurately estimated from small samples.
 
-\subsection{Error sensitivity}
+\subsection{Intuitive Accuracy Metric}
 \label{sec:eval:errorsensitivity}
-\sui{
-	I intend to show with the figure that 1) error propagation at an early point of time in a long serial run will result in an error that keeps being oscillated and magnified, resulting in numerical instability or simulation explosion,
-	and be terminated or 2) the speed the magnitude of errors grows keeps dropping until the magnitude of errors stabilize and converge. \\
-	In the first case, the magnitude of errors in the output should be small enough not to trigger numerical unstability or simulation explosion. In the second case,
-	the magnitude of error would peak the instant after the errors occur. Either way, we can assume the magnitude of errors in a serial run to be the largest among
-	individual instances.
-}
+
+Even in the absence of hardware faults scientific applications face many sources of error, including errors in input data, discretization error and modeling error.
+All these sources of error are actively managed by application developers to ensure that the application's output remains useful.
+Importantly, it means that hardware faults are only important if they cause errors larger than the ambient error that already exists in a given application, with a sufficiently high probability to make it a threat to decision-making.
+While the probability of an inaccurate result makes intuitive sense to users, bounds on error are less intuitive and thus difficult to set.
+As such, in this case study we relate output errors due to soft faults to measurement errors in application inputs, something that developers currently need to consider.
+To this end we took the inputs to ADDR, DRC and Hattrick (all are matrixes or vectors of floating point numbers) and perturbed them by multiplying the values a random amount of noise sampled from a Gaussian distribution with mean 1 and a standard deviation that varies from 1e-9 to 1e0.
+Figure~\ref{fig:inputvarianceoutputrmsd} shows the RMS difference (vertical axis) between the outputs of each application on every input, when noise with each standard deviation (horizontal axis) is and is not injected.
+The data shows that DRC is largely insensitive to noise in its inputs, with RME differences of 1e-3 to 1e-2 typical across the noise spectrum.
+This means that fault-induced RMS errors smaller than 1e-3 are completely irrelevant to this application and errors between 1e-3 and 1e-2 are typical for it.
+In contrast, the output difference in ADDR and Hattrick are very sensitive to noise in the input, making it critical to set their target RMS error to be consistent with the uncertainty in the inputs.
 
 \begin{figure}[ht!]
 \centering
@@ -613,49 +528,49 @@ $RMSD_{parallel} = \sum_{i=1}^{N}{RMSD_n}/N$
 \label{fig:inputvarianceoutputrmsd}
 \end{figure}
 
-\subsection{Experiment setup}
-\label{sec:eval:confs}
-
-\sui{
-As we have seen in section \ref{sec:res_tech:eval}, varying the error checker thresholds in linear algebra routines and the checkpointing intervals and number of
-replicas in the RK4 integrator results in different levels of accuracy. As they are deployed in applications, choice of these parameters may influence how often
-the applications need to rollback in order to obtain correct results. An intuition is we should strike a balance between the tradeoff between correctness
-and performance. To explore the possible tradeoff in applications, we consider a range of parameters for our resilience techniques as described in section \ref{sec:res_tech:eval} when deploying the algorithmic checkers in these applications. The variable parameters and fixed parameters are listed as below.
-}
-
-\begin{figure}[ht!]
-\centering
-\begin{tabular}{|p{0.7in}|p{2.0in}|}
-\hline
-{\bf Application} & {\bf Resilience Techniques} \\
-\hline
-\hline
-Lasso & Checkers for MM, MV, CD, SYRK; input backup; protection for critical data structures \\
-\hline
-DRC & Checkers for FFT, FIR; input backup; protection for critical data structures \\
-\hline
-Hattrick & Checkpointing; protection for critical data structures; replication of pointers \\
-\hline
-\hline
-{\bf Application} & {\bf Variable Parameters} \\
-\hline
-\hline
-Lasso & Checker thresholds 1e-4 to 1e-7 \\
-\hline
-DRC   & Checker thresholds 1e-6 to 3e-8 \\
-\hline
-Hattrick & Checkpointing intervals 0, 1e3, 1e5; 0, 1, 2 replicas for each pointer \\
-\hline
-\end{tabular}
-\caption{Experiment Configurations}
-\label{fig:exp_confs}
-\end{figure}
-
-\sui{
-	In each accelerated fault injection experiment, we ran each application configuration to completion, recording whether it completed and if so, the magnitude of the
-	error.
-	We calculate the execution time of each configuration, accounting for restarting the application in cases of unrecoverable failures via the formula $\frac{t_c}{1-p_f}$, where $t_c$ is the average completion time of such runs and $p_f$ is the probability of an unrecoverable failure.
-}
+%\subsection{Experiment setup}
+%\label{sec:eval:confs}
+%
+%\sui{
+%As we have seen in section \ref{sec:res_tech:eval}, varying the error checker thresholds in linear algebra routines and the checkpointing intervals and number of
+%replicas in the RK4 integrator results in different levels of accuracy. As they are deployed in applications, choice of these parameters may influence how often
+%the applications need to rollback in order to obtain correct results. An intuition is we should strike a balance between the tradeoff between correctness
+%and performance. To explore the possible tradeoff in applications, we consider a range of parameters for our resilience techniques as described in section \ref{sec:res_tech:eval} when deploying the algorithmic checkers in these applications. The variable parameters and fixed parameters are listed as below.
+%}
+%
+%\begin{figure}[ht!]
+%\centering
+%\begin{tabular}{|p{0.7in}|p{2.0in}|}
+%\hline
+%{\bf Application} & {\bf Resilience Techniques} \\
+%\hline
+%\hline
+%Lasso & Checkers for MM, MV, CD, SYRK; input backup; protection for critical data structures \\
+%\hline
+%DRC & Checkers for FFT, FIR; input backup; protection for critical data structures \\
+%\hline
+%Hattrick & Checkpointing; protection for critical data structures; replication of pointers \\
+%\hline
+%\hline
+%{\bf Application} & {\bf Variable Parameters} \\
+%\hline
+%\hline
+%Lasso & Checker thresholds 1e-4 to 1e-7 \\
+%\hline
+%DRC   & Checker thresholds 1e-6 to 3e-8 \\
+%\hline
+%Hattrick & Checkpointing intervals 0, 1e3, 1e5; 0, 1, 2 replicas for each pointer \\
+%\hline
+%\end{tabular}
+%\caption{Experiment Configurations}
+%\label{fig:exp_confs}
+%\end{figure}
+%
+%\sui{
+%	In each accelerated fault injection experiment, we ran each application configuration to completion, recording whether it completed and if so, the magnitude of the
+%	error.
+%	We calculate the execution time of each configuration, accounting for restarting the application in cases of unrecoverable failures via the formula $\frac{t_c}{1-p_f}$, where $t_c$ is the average completion time of such runs and $p_f$ is the probability of an unrecoverable failure.
+%}
 
 % Configurations are described twice.
 \subsection{Performance Impact}
