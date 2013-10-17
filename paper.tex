@@ -296,27 +296,34 @@ As RK checkpoint periods grow, the time spent in checkpointing shrinks while the
 \subsection{Evaluation of Subroutine Resilience}
 \label{sec:res_tech:eval}
 
-To analyze the performance and resilience properties the key routines in ADDR, DRC and Hattrick we conducted a comprehensive fault injection campaign where we employed the above resilience techniques with each routine, as applicable,
-We used fault rates between 1e-11 and 1e-8 errors per clock cycle \greg{(is this correct)}, probing each application's behavior as it was impacted by either one or multiple errors in a single run.
-Our experiments span a wide range of input sizes and a broad range of resilience mechanism configurations, with 100 (\greg{???}) runs for each combination of application, input, fault rate and resilience configuration.
+We now summarize our methodology for analyzing the performance and resilience properties of applications when injected with errors.
+For clarity the analysis in this section focuses on the individual key routines in ADDR, DRC and Hattrick, since analyzing the entire applications obscures the properties of the routines.
+The same analyses are were conducted on the full applications and used to predict the properties of large-scale runs, as Section~\ref{sec:eval} reports.
+Due to space constraints this section reports representative experimental results, rather than all of them.
+
+We conducted a comprehensive fault injection campaign where we employed the above resilience techniques with each routine, as applicable.
+Fault injection rates between 1e-11 and 1e-8 errors per clock cycle were used\greg{(is this correct)} to probe the effect of one or multiple errors per routine execution.
+Our experiments span a wide range of input sizes and a broad range of resilience mechanism configurations, with 100 (\greg{???}) runs for each combination of routine, input, fault rate and resilience configuration.
 Table~\ref{tbl:configs} specifies the techniques applied to each routine and its configuration space.
 \begin{table}
   \begin{tabular}{|c|c|c|c|c|}
     \hline
-    \multicolumn{2}{c}{Routine}          & Algorithmic Detector             & Checkpointing         & Pointer Replication  \\
+    \multicolumn{2}{|c|}{Routine}          & Algorithmic Detector             & Checkpointing         & Pointer Replication  \\
     \hline
     \multirow{4}{*}{ADDR}      & MM   & Linear encoding                     & Inputs                & No \\
-                               & SYRK & Detection Thresholds:               & Inputs                & No \\
+                               & SYRK & Thresholds:                         & Inputs                & No \\
                                & MVM  & 1e-4 to 1e-7                        & Inputs                & No \\
                                & CD   &                                     & Inputs                & No \\
     \hline
     \multirow{2}{*}{FRC}       & FFT  & Parseval's theorem.                 & Inputs                & No \\
                                & FIR  & Sum conservation.                   & Inputs                & No \\
-                               &      & Detection Thresholds: 1e-6 to 3e-8. &                            \\
+                               &      & Thresholds: 1e-6 to 3e-8.           &                            \\
     \hline
-    \multirow{3}{*}{Hattrick}  & \multirow{3}{*}{RK} & \multirow{3}{*}{Variable step-size} & Periodic Timesteps    & None  \\
-                               &      &                                   & Period:  1, 1e3, 1e5 & All pointers checked at one code location \\
-                               &      &                                   &                       & All pointers checked on each use \\
+    \multirow{5}{*}{Hattrick}  & \multirow{5}{*}{RK} & \multirow{5}{*}{Variable step-size} & Periodic Timesteps    & None  \\
+                               &      &                                   & Period: 1, 1e3, 1e5   & All pointers, \\
+                               &      &                                   &                       & checked at one code location \\
+                               &      &                                   &                       & All pointers, \\
+                               &      &                                   &                       & checked on each use \\
     \hline
   \end{tabular}
   \caption{The resilience techniques applied to each major routine of each application.}
@@ -367,43 +374,23 @@ Replication without checkpointing is more effective than checkpointing without r
 \subsubsection{Result Accuracy}
 \label{sec:res_tech:eval:accuracy}
 
-Even though an application may complete its execution, errors injected into its numeric state may produce incorrect output.
-In each experimental configuration we measured the distribution of errors in application output, measured as the Root Mean Square (RMS) Error: $\sqrt{\sigma_i (x_i-x'_i)^2}/n$, where $x_i$ is the value of output element $i$ in a fault-free run, $x'_i$ its value in a fault-injected run and $n$ is the total number of output elements (e.g. size of the output matrix).
+Even though a routine may complete its execution, errors injected into its numeric state may produce incorrect output.
+In each experimental configuration we measured the distribution of errors in routine output, quantified as the Root Mean Square (RMS) Error: $\sqrt{\sigma_i (x_i-x'_i)^2}/n$, where $x_i$ is the value of output element $i$ in a fault-free run, $x'_i$ its value in a fault-injected run and $n$ is the total number of output elements (e.g. size of the output matrix).
 
-Figure~\ref{fig:algo_err_dist} shows a sample of our results, focusing on the linear algebra routines (restarted upto 5 times after an error detection).
-It presents the probability distribution of the routine's results having errors of various magnitudes.
-Each tile corresponds to a different routine (vertical order) and different algorithmic error detection threshold used (horizontal order).
-Table~\ref{fig:algo_err_heatmap} specifies the exact threshold values used.
+Figure~\ref{fig:algo_err_dist} shows a sample of our results, focusing on the linear algebra routines (runs that restarted more than 5 times were excluded).
+It presents the probability distribution of errors with various magnitudes in each routine's output.
+Each tile corresponds to a different routine (vertical order) and different algorithmic error detection threshold used (horizontal order). (\greg{What input sizes})
+Table~\ref{fig:algo_err_heatmap} specifies the exact threshold values used for each routine.
 Within each tile the vertical axis corresponds different error rates.
-The axis numbers are normalized to the execution time of the configuration with no resilience techniques (\greg{errors injected or not?}) and specify the average number of errors injected during this time period at this rate.
-The horizontal axis corresponds to the error magnitude ranging from 1e-14 to 1e-1.
-For each error injection count and output error magnitude we report the probability of the output having error of \emph{larger than} this magnitude as a different shade of gray, with darker shades indicating higher probabilities.
-Thus, darker plots indicate that error injections make larger output errors more likely and errors $\ge$ a smaller magnitude are always less likely than errors $\ge$ a larger one (shades grow lighter from left to right).
+The axis values are the number of errors that would be injected at each injection rate into a single run of the routine with no resilience techniques (\greg{errors injected or not?}).
+The horizontal axis corresponds to the RMS error magnitude, ranging from 1e-14 to 1e-1.
+For each error injection count and output error magnitude we report the probability of the output having error $\ge$ this magnitude as a different shade of gray, with darker shades indicating higher probabilities on a log scale (base 10).
+Thus, darker plots indicate that error injections make larger output errors more likely and shades grow lighter from left to right since errors $\ge$ a smaller magnitude are always less likely than errors $\ge$ a larger one.
 
 As error count increases the probability of larger output errors rises.
-Further, tighter (smaller) error detection thresholds reduce this probability.
+Tighter (smaller) error detection thresholds reduce this probability.
 Error distributions vary widely, with MM being most resilient to errors (the probability of having large errors is low) and CD least.
 These experiments guide the choice of how each routine's resilience technique is configured to meet user-specified accuracy bounds.
-
-Figures~\ref{fig:algo_err_dist} show the fraction of entries in the outputs of each routine (y-axis) that have an error of a given magnitude (x-axis) as error magnitudes span from 1e-14 to 1e-4.
-This figure is a focused view on few representative cases (each routine run on a single input size and error injection rate) across different resilience configurations: no error detection as well as three error detection thresholds.
-As the error magnitude increases the fraction of output entries with errors of that magnitude drops.
-Importantly, the fraction of erroneous entries is reduced at all magnitudes as a result of error detection and restart.
-Further, this reduction is more significant as the detection threshold shrinks since smaller magnitude errors are detected.
-
-Figure~\ref{fig:algo_err_heatmap} shows the same information but for all experimental configurations: (i) input sizes as above (ii) error injection rates of 1e-7 to 1e-10.
-The graph is a grid, with results for different routines listed vertically and different resilience configurations (no detection and the different detection thresholds shown in the table at the bottom) listed horizontally.
-The graph for each routine and resilience configuration presents the curves from Figure~\ref{fig:algo_err_dist} as a heatmap.
-The y-axis shows different routine input sizes and error injection rates, sorted according to the average number of error injections per non-fault injected run, in decreasing order from top to bottom.
-The x-axis shows the different error magnitudes and the shade of each point is the fraction of the routine's entries that have a given error magnitude, with darker shades indicating more such entries (each shade corresponds to a fraction that is some power of 10).
-Thus, each row of Figure~\ref{fig:algo_err_heatmap} represents the same information as each curve in Figure~\ref{fig:algo_err_dist}, with the shades of the squares representing the same information as the height of the line's points.
-
-%\begin{figure}[ht!]
-%\centering
-%\includegraphics[width=1.00\columnwidth]{figs/4_1_1_Exp2_1_Example.png}
-%\caption{Error magnitude histogram showing the effectiveness of the error detector}
-%\label{fig:algo_err_dist}
-%\end{figure}
 
 \begin{figure}[ht!]
 \centering
@@ -433,38 +420,37 @@ SYRK & 1e-06 & 1e-07 & 1e-08 \\
 \section{Evaluation of Resilience Methodology in Applications}
 \label{sec:eval}
 
-To effectively and efficiently protect applications from soft errors we must consider each application's and routine's unique resilience needs as well as the user's accuracy requirements, the error rate of the hardware and the scale at which the application run (total execution time and number of compute cores).
-We now build upon the analysis of individual routines summarized in Section~\ref{sec:res_tech:eval} to show how our methodology can be applied in the context of large-scale HPC applications.
-The most accurate way to configure a large-scale application run on a given platform with a given input is to conduct a thorough fault injection campaign at this scale, injecting large numbers of errors into various code regions and processors.
-Since this would require thousands of times more compute hours than a single large-scale application run, the only practical option is to extrapolate from small-scale application executions to large-scale ones.
-This case study addresses this challenge by modeling large-scale instances of linear solver, signal processing and n-body simulation applications as combinations of small instances of these applications, that can indeed be comprehensively studied via a fault injection campaign.
-
-This section reports the anticipated behavior of large-scale (1 million CPU-hours) runs of applications in these three domains.
-We begin by describing our methodology to extrapolate the fault injection results for individual small-scale runs of ADDR, DRC and Hattrick to large-scale runs that connect many small-scale instances in various parallel and sequential dependence patterns.
-We then apply analysis methodology described in Section~\ref{sec:res_tech:eval} to each of the three applications on various small-scale inputs to relate the various hardware error rate and the configurations of their resilience mechanisms to the resulting overhead and distribution of output errors.
-
-The results of these experiments are used to select the most efficient configuration of the resilience mechanisms for each given hardware error rate and user accuracy requirement, focusing on the specific use-case of application runs that use 1 million CPU hours.
+To effectively and efficiently protect applications from soft errors we must consider each application's unique resilience needs as well as the user's accuracy requirements, the hardware fault rate and the scale at which the application runs (total execution time and number of compute cores).
+%We now build upon the analysis of individual routines summarized in Section~\ref{sec:res_tech:eval} to show how our methodology can be applied in the context of large-scale HPC applications.
+We now predict how large-scale runs (1 million CPU-hours) of applications in the linear solver, signal processing and n-body simulation application domains will behave on faulty hardware.
+The most accurate way to do this is to perform many large-scale runs with many inputs and configurations of resilience techniques, while injecting errors at different rates.
+Since this requires hundreds of thousands of application runs, this is infeasible in practice and thus the only practical option is to extrapolate from small-scale application runs to large-scale ones.
+This case study addresses this challenge by modeling large-scale runs of applications in each target domain as combinations of small instances of representative applications, that can indeed be comprehensively studied via a fault injection campaign. 
+First, we performed the fault injection-based analysis detailed in Section~\ref{sec:res_tech:eval} on ADDR, DRC and Hattrick, identifying for each combination of application, input, configuration of resilience techniques and error injection rate the application's the execution time and distribution of RMS errors in its outputs.
+We then use the methodology described in Section~\ref{sec:eval:extrapolation} to extrapolate the fault injection results for individual small-scale runs of ADDR, DRC and Hattrick to large-scale runs that connect many small-scale instances in various parallel and sequential dependence patterns.
+Our comprehensive fault injection experiments make it possible to select the most efficient configuration of resilience techniques for each input, error rate and user accuracy target, making it possible to reason about realistic deployments of these techniques.
+%The results of these experiments are used to select the most efficient configuration of the resilience mechanisms for each given hardware error rate and user accuracy requirement, focusing on the specific use-case of application runs that use 1 million CPU hours.
 User accuracy requirements are expressed as a cap on the RMS error an application output may have and a bound on the probability with which this bound may be violated.
-Since users rarely have a clear idea of how much RMS error is acceptable, we provide an alternative way to specify such bounds in terms of the amount of uncertainty about the application's inputs that would have generated a given amount of RMS difference between outputs.
+Since users rarely have a clear idea of how much RMS error is acceptable, Section~\ref{sec:eval:errorsensitivity} describes an alternative way to specify such bounds in terms of the amount of uncertainty about the application's inputs that would have generated a given amount of RMS difference between outputs.
 By expressing the effects of soft faults using the same concepts as measurement error, this representation makes it easier to select an appropriate output accuracy and predict the effects of a given selection on other software that reads the application's output.
-
+Finally, Sections~\ref{sec:eval:perf} and \ref{sec:eval:acc} discuss the performance and accuracy properties, respectively, of large scale runs of applications in each target application domain, as well as the best configurations of resilience techniques.
 
 \subsection{Extrapolation Model}
 \label{sec:eval:extrapolation}
 
 Figure~\ref{fig:extrapolations} illustrates how individual runs of ADDR, DRC and Hattrick are combined to model large-scale instances of linear solver, signal processing and n-body simulation applications.
-We observe that most large-scale applications can be described simple dependence graphs of identical tasks, such as the execution of a single time-step calculation in a single point in space.
-The shape of the graph controls its total execution time and the way errors propagate.
-Our model focuses on two major types of task graphs: parallel reduction and sequential chaining.
+We observe that most large-scale applications can be described simple dependence graphs of identical tasks (e.g. single time-step calculation on a point in space).
+The graph's shape controls its execution time and the way errors propagate.
+Our model focuses on three major types of task graphs (i) parallel reduction, (ii) sequential chaining and (iii) sequence of parallel reductions.
 
-In the parallel reduction model all tasks run in parallel and their results are reduced into a common aggregate.
-As such, the total execution time of the graph is the maximum execution time of all the tasks (approximated as the top 10 percentile as discussed below).
+In the parallel reduction model the results of concurrent tasks are reduced into a common aggregate.
+The graph's execution time is the maximum across all the tasks (approximated as the top 10 percentile, as discussed below).
 The RMS error of the aggregate is the combination of the RMS errors of the individual task outputs, which depends on the exact aggregation operation used.
-Since averaging is a very common but not universal aggregation operation, in reductions we model the RMS error of the aggregate as the average of the RMS errors of individual tasks, which is an over-estimate of the RMS errors of their average.
+Since averaging is a very common but not universal aggregation operation, we model the RMS error of the reduced aggregate as the average of the RMS errors of individual tasks, which over-approximates the RMS error of their average.
 In the sequential chaining model each task's output is used by the next task, forcing them to run in sequence.
-The total execution time of task chains is thus the sum of the execution times of the individual tasks.
+The chain's execution time is the sum of its member tasks.
 Tasks may either amplify or dampen errors in their inputs (output errors may be larger or smaller, respectively).
-Given the complexity of dampening and amplification behavior that may occur in practice our model assumes that no dampening or amplification occurs and the error at the end of a task chain is equal to the maximum error of any task within the chain (also approximated as the top 10 percentile).
+Given the complexity of dampening and amplification behavior that may occur in practice our model assumes that no dampening or amplification occurs and the RMS error at the end of a task chain is equal to the maximum RMS error of any task within the chain (also approximated as the top 10 percentile).
 
 \greg{TODO: In addition to pure parallel and pure sequential dependence graphs we also considered sequences of parallel reductions, with the number of tasks in a given reduction equal to the number of reduction steps.}
 
@@ -477,47 +463,59 @@ Given the complexity of dampening and amplification behavior that may occur in p
 
 We model large-scale linear solvers as dependence graphs of individual runs of ADDR, signal processing applications in terms of runs of DRC and n-body simulations in terms of runs of Hattrick.
 Our experiments were performed on compute nodes with two 2.33 GHz dual-core Xeon E5345 processors with 4GB Ram and RHEL 4 Linux.
-We run ADDR, DRC and Hattrick no fault injection on the inputs described in Section~\ref{sec:apps} and configuration options listed in Table~\ref{tbl:configs} to measure their fault-free execution time.
-We also executed each configuration while injecting faults at rates to produce one or more injections per run.% (since different configurations have different execution times, the number of injections per run varies).
-\greg{Since some runs
-In each accelerated fault injection experiment, we ran each application configuration to completion, recording whether it completed and if so, the magnitude of the
-	error.
-	We calculate the execution time of each configuration, accounting for restarting the application in cases of unrecoverable failures via the formula $\frac{t_c}{1-p_f}$, where $t_c$ is the average completion time of such runs and $p_f$ is the probability of an unrecoverable failure.}
-For each combination of application, input and configuration we performed 100 fault injections, for a total of 66,100 fault injection experiments for ADDR (4-process parallel runs), 43,200 for DRC (sequential runs), 102,000 for Hattrick (sequential runs).
-For reference, assuming a typical FIT of 100-100,000 for individual processing cores (FIT = failure in one billion hours of operation and this range has been experimentally observed for commodity electronics~\cite{mem_errors:2010, dram_error:2009}), an HPC system with one million cores will experience .1-100 errors per hour, which is equivalent to 3e-11 - 3e-14 errors per processor cycle on a 1Ghz processor.
+We run ADDR, DRC and Hattrick with no fault injection on the inputs described in Section~\ref{sec:apps} and configuration options listed in Table~\ref{tbl:configs} to measure their fault-free execution time.
+The reliability of today's processing cores is approximately 100-100,000 FIT~\cite{mem_errors:2010, dram_error:2009} (failure in one billion hours of operation).
+An HPC system with one million cores will thus experience .1-100 errors per hour, equivalent to 3e-11 - 3e-14 errors per processor cycle on a 1Ghz processor.
 To make our analysis comprehensive we consider error rates between 1e-10 and 1e-16 (\greg{is this right?}).
+The modeled this range of rates by performing fault injection at various rates to produce one or more error injections per run, upto 1e-10 errors per cycle. % (since different configurations have different execution times, the number of injections per run varies).
+%\greg{Since some runs
+%In each accelerated fault injection experiment, we ran each application configuration to completion, recording whether it completed and if so, the magnitude of the	error.
+%We calculate the execution time of each configuration, accounting for restarting the application in cases of unrecoverable failures via the formula $\frac{t_c}{1-p_f}$, where $t_c$ is the average completion time of such runs and $p_f$ is the probability of an unrecoverable failure.}
+Error rates that produce fewer than 1 injection per run were simulated by combining the behavior of runs with 1 error injection and runs with no errors injected, as described below.
+For each combination of application, input, resilience configuration and error rate we performed 100 fault injections, for a total of 66,100 fault injection experiments for ADDR (4-process parallel runs), 43,200 for DRC (sequential runs), 102,000 for Hattrick (sequential runs).
 
 We model the RMS error and expected execution time of a task graph that consists of executions of a given application, input and configuration combination (denoted a ``task''), on a system with a given per-processor error rate as follows.
 Let $N$ be the total number of task runs needed to reach 1 million CPU hours and let $NF$ be the number of runs that are expected to have faults injected into them at the given error rate.
+$NF=N$ is the expected number of error injections per run is >1 and $NF<N$ otherwise.
 We sample $NF$ runs from the 100 fault injection runs conducted for the given configuration with replacement.
-Replacement is used since faults are memory-less, they do not depend on prior faults.
-As such, $NF$ may be larger than 100 without biasing the statistical results since the 100 runs are representative of the overall population.
-We then add $N-NF$ copies of the non-fault injected variant of the given task to produce a complete sample of a large-scale application execution.
-Finally, we compute the model application's metrics as:
-\begin{eqnarray}
-ExecTime_{Parallel} &= \text{Top 10 percentile of} ExecTime \text{of tasks in sample}\\
-RMSE_{Parallel} &= \text{Average} ExecTime \text{of tasks in sample}\\
-ExecTime_{Sequence} & = \text{Average} ExecTime \text{of tasks in sample}\\
-RMSE_{Sequence} & = \text{Top 10 percentile of} ExecTime \text{of tasks in sample}
-\end{eqnarray}
+Because the 100 runs are representative of the overall population of runs and sampling is done with replacement (faults do not depend on prior history) $NF$ may be larger than 100.
+We then add $N-NF$ copies of the task's non-fault injected variant to produce a complete sample from the population of large-scale application executions.
+
+Finally, we compute the model application's metrics from the sample as follows:
+\begin{tabular}{|c|c|c|}
+\hline
+               & Parallel          & Chain             \\
+\hline
+Execution Time & Top 10 percentile & Average           \\
+\hline
+RMS error      & Average           & Top 10 percentile \\
+\hline
+\end{tabular}
+%\begin{eqnarray}
+%ExecTime_{Parallel} &= \text{Top 10 percentile of} ExecTime \text{of tasks in sample}\\
+%RMSE_{Parallel} &= \text{Average} ExecTime \text{of tasks in sample}\\
+%ExecTime_{Sequence} & = \text{Average} ExecTime \text{of tasks in sample}\\
+%RMSE_{Sequence} & = \text{Top 10 percentile of} ExecTime \text{of tasks in sample}
+%\end{eqnarray}
 This procedure is repeated \greg{???} times to compute the expected value of the quantities.
 We also use these samples to compute the 95\% confidence interval of the expected value (range where 95\% of the samples are located).
 
-The reason why we use the top 10 percentile rather than the maximum is because the maximum metric is extremely sensitive to sampling.
-Since there is no bound in the difference between the maximum of a given sample and the overall maximum, the only way to estimate it accurately is to sample the entire space of possibilities, which is prohibitively expensive.
+The reason why we use the top 10 percentile rather than the maximum is because the maximum metric is extremely sensitive to sampling error.
+Since there is no bound in the difference between the maximum of a given sample and the overall maximum, the only way to estimate this metric accurately is to sample the entire space of possibilities, which is prohibitively expensive.
 In contrast, metrics such as average and percentiles are robust against such effects and can be accurately estimated from small samples.
 
 \subsection{Intuitive Accuracy Metric}
 \label{sec:eval:errorsensitivity}
 
 Even in the absence of hardware faults scientific applications face many sources of error, including errors in input data, discretization error and modeling error.
-All these sources of error are actively managed by application developers to ensure that the application's output remains useful.
-Importantly, it means that hardware faults are only important if they cause errors larger than the ambient error that already exists in a given application, with a sufficiently high probability to make it a threat to decision-making.
-While the probability of an inaccurate result makes intuitive sense to users, bounds on error are less intuitive and thus difficult to set.
-As such, in this case study we relate output errors due to soft faults to measurement errors in application inputs, something that developers currently need to consider.
-To this end we took the inputs to ADDR, DRC and Hattrick (all are matrixes or vectors of floating point numbers) and perturbed them by multiplying the values a random amount of noise sampled from a Gaussian distribution with mean 1 and a standard deviation that varies from 1e-9 to 1e0.
-Figure~\ref{fig:inputvarianceoutputrmsd} shows the RMS difference (vertical axis) between the outputs of each application on every input, when noise with each standard deviation (horizontal axis) is and is not injected.
-The data shows that DRC is largely insensitive to noise in its inputs, with RME differences of 1e-3 to 1e-2 typical across the noise spectrum.
+These errors are actively managed by application developers to ensure that the application's output remains useful.
+Errors smaller than these or larger errors that are extremely unlikely do not affect the output's utility.
+The probability of an inaccurate result can be readily incorporated in to user decision making to trade off a result's value against the cost of its computation.
+However, explicit bounds on RMS error are less intuitive and thus difficult to specify.
+As such, in this case study we relate output errors due to soft faults to measurement errors in application inputs, which users currently account for.
+To this end we took the inputs to ADDR, DRC and Hattrick (all are matrixes or vectors of floating point numbers) and perturbed them by multiplying the values by a random value sampled from a Gaussian distribution with mean 1 and a standard deviation that varies from 1e-9 to 1e0.
+Figure~\ref{fig:inputvarianceoutputrmsd} shows for each application and input the RMS difference (vertical axis) between the application outputs, when perturbation with each standard deviation (horizontal axis) is and is not applied.
+The data shows that DRC is largely insensitive input noise, with RME differences of 1e-3 to 1e-2 typical across the spectrum.
 This means that fault-induced RMS errors smaller than 1e-3 are completely irrelevant to this application and errors between 1e-3 and 1e-2 are typical for it.
 In contrast, the output difference in ADDR and Hattrick are very sensitive to noise in the input, making it critical to set their target RMS error to be consistent with the uncertainty in the inputs.
 
